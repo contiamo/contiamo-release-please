@@ -51,3 +51,26 @@ tasks:
       - rm -rf .venv
       - rm -rf .pytest_cache
       - rm -rf .ruff_cache
+
+  help:
+    desc: Show usage examples for contiamo-release-please
+    silent: true
+    cmds:
+      - |
+        echo "Contiamo Release Please - Usage Examples"
+        echo "========================================="
+        echo ""
+        echo "Version Determination:"
+        echo "  uv run contiamo-release-please next-version"
+        echo "  uv run contiamo-release-please next-version --verbose"
+        echo "  uv run contiamo-release-please next-version --config /path/to/config.yaml"
+        echo ""
+        echo "Changelog Generation:"
+        echo "  uv run contiamo-release-please generate-changelog"
+        echo "  uv run contiamo-release-please generate-changelog --dry-run --verbose"
+        echo "  uv run contiamo-release-please generate-changelog --output CHANGES.md"
+        echo ""
+        echo "General Help:"
+        echo "  uv run contiamo-release-please --help"
+        echo "  uv run contiamo-release-please next-version --help"
+        echo "  uv run contiamo-release-please generate-changelog --help"
