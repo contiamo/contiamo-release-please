@@ -1,11 +1,12 @@
 # Contiamo Release Please - Development Progress
 
-## Project Status: Phase 2 Complete ✅
+## Project Status: Phase 3.5 Complete ✅
 
 ### What's Been Implemented
 
 #### Phase 1: Version Determination (COMPLETE)
 #### Phase 2: Changelog Generation (COMPLETE)
+#### Phase 3: File Bumping - YAML Support (COMPLETE)
 
 **Core Functionality:**
 1. ✅ Git repository root detection via `git rev-parse --show-toplevel`
@@ -24,18 +25,26 @@ contiamo-release-please/
 ├── .gitignore
 ├── pyproject.toml
 ├── README.md
+├── Taskfile.yaml
 ├── contiamo-release-please.yaml (example config)
+├── charts/testchart/Chart.yaml (test fixture, gitignored)
 ├── src/
 │   └── contiamo_release_please/
 │       ├── __init__.py
-│       ├── main.py           # CLI + calculate_next_version() function
-│       ├── config.py          # YAML config loading + version_prefix
+│       ├── main.py           # CLI + all commands
+│       ├── config.py          # YAML config loading
 │       ├── git.py             # Git operations (root detection, tags, commits)
 │       ├── analyser.py        # Commit analysis (UK spelling)
-│       └── version.py         # Semver bumping logic
+│       ├── version.py         # Semver bumping logic
+│       ├── changelog.py       # Changelog generation
+│       └── bumper.py          # File version bumping
 └── tests/
     ├── __init__.py
-    └── test_analyser.py (17 tests, all passing)
+    ├── test_analyser.py (17 tests)
+    ├── test_changelog.py (11 tests)
+    └── test_bumper.py (22 tests)
+
+Total: 50 tests, all passing ✅
 ```
 
 ### Configuration File
@@ -204,15 +213,111 @@ uv run contiamo-release-please generate-changelog --output CHANGES.md
 ```
 
 **Test Results:**
-- 28 tests passing (17 original + 11 new changelog tests)
+- 28 tests passing (17 analyser + 11 changelog)
 - All existing tests still pass
 
-### What's Next (Future Phases)
+#### Phase 3: File Bumping - YAML Support (COMPLETE)
 
-**Phase 3: File Bumping**
-- Read `files-to-bump` from YAML
-- Update version in multiple files (pyproject.toml, version.txt, etc.)
-- Pattern-based replacement
+**Core Functionality:**
+1. ✅ `bump-files` CLI command
+2. ✅ YAML file version bumping using JSONPath
+3. ✅ Per-file prefix configuration (`use-prefix`)
+4. ✅ Extensible `FileBumper` architecture (ABC pattern)
+5. ✅ Auto-version detection (reuses `calculate_next_version()`)
+6. ✅ Dry-run mode to preview changes
+7. ✅ Comprehensive error handling and validation
+8. ✅ Support for multiple paths in same file
+9. ✅ Verbose mode for detailed output
+
+**New Files:**
+- `src/contiamo_release_please/bumper.py` - File bumping logic with extensible architecture
+- `tests/test_bumper.py` - 14 comprehensive tests
+- `charts/testchart/Chart.yaml` - Test Helm chart (gitignored)
+
+**Modified Files:**
+- `src/contiamo_release_please/config.py` - Added `get_extra_files()` method
+- `src/contiamo_release_please/main.py` - Added `bump-files` command
+- `contiamo-release-please.yaml` - Added `extra-files` configuration
+- `pyproject.toml` - Added `jsonpath-ng>=1.6.0` dependency
+- `.gitignore` - Added `charts/` directory
+- `Taskfile.yaml` - Updated help with bump-files examples
+
+**Configuration:**
+```yaml
+extra-files:
+  - type: yaml
+    path: charts/testchart/Chart.yaml
+    yaml-path: $.version          # Simple path
+  - type: yaml
+    path: charts/testchart/Chart.yaml
+    yaml-path: $.appVersion
+    use-prefix: "v"               # Adds "v" prefix to version
+```
+
+**Usage:**
+```bash
+# Bump files (auto-detects version)
+uv run contiamo-release-please bump-files
+
+# Dry-run mode (preview changes)
+uv run contiamo-release-please bump-files --dry-run --verbose
+
+# Shows:
+# Updated files:
+#   ✓ charts/testchart/Chart.yaml:$.version → 0.1.0
+#   ✓ charts/testchart/Chart.yaml:$.appVersion → v0.1.0
+```
+
+**Test Results:**
+- 42 tests passing (17 analyser + 11 changelog + 14 YAML bumper)
+- All type checks passing (pyright)
+- All lint checks passing (ruff)
+
+**Architecture Highlights:**
+- Abstract `FileBumper` base class for extensibility
+- Type-specific bumpers: `YamlFileBumper`
+- JSONPath syntax for flexible field targeting
+
+#### Phase 3.5: TOML File Support (COMPLETE)
+
+**Core Functionality:**
+1. ✅ `TomlFileBumper` class for Python projects
+2. ✅ Support for `pyproject.toml` version bumping
+3. ✅ JSONPath syntax for consistency with YAML
+4. ✅ Comment and formatting preservation using tomlkit
+5. ✅ Same `use-prefix` functionality as YAML
+6. ✅ Comprehensive error handling
+
+**New Dependencies:**
+- `tomlkit>=0.12.0` - TOML library that preserves formatting and comments
+
+**Modified Files:**
+- `src/contiamo_release_please/bumper.py` - Added `TomlFileBumper` class
+- `tests/test_bumper.py` - Added 8 TOML tests (50 total tests now)
+- `pyproject.toml` - Added tomlkit dependency
+- `contiamo-release-please.yaml` - Added commented TOML example
+
+**Configuration:**
+```yaml
+extra-files:
+  - type: toml
+    path: pyproject.toml
+    toml-path: $.project.version
+    use-prefix: "v"  # Optional prefix
+```
+
+**Architecture:**
+- `TomlFileBumper` extends abstract `FileBumper` class
+- Uses same JSONPath syntax as YAML bumper ($.field.nested)
+- Preserves TOML comments and formatting via tomlkit
+- Consistent error handling with YAML implementation
+
+**Test Results:**
+- 50 tests passing (17 analyser + 11 changelog + 14 YAML bumper + 8 TOML bumper)
+- All type checks passing (pyright)
+- All lint checks passing (ruff)
+
+### What's Next (Future Phases)
 
 **Phase 4: Release Automation**
 - Create git tags
@@ -237,6 +342,8 @@ uv run contiamo-release-please generate-changelog --output CHANGES.md
 - click >= 8.1.7
 - pyyaml >= 6.0
 - packaging >= 24.0
+- jsonpath-ng >= 1.6.0
+- tomlkit >= 0.12.0
 
 **Dev:**
 - pytest >= 8.3.2
@@ -249,6 +356,9 @@ uv run contiamo-release-please generate-changelog --output CHANGES.md
 ```bash
 # List all available tasks
 task
+
+# Show usage examples
+task help
 
 # Setup environment (create venv + install deps)
 task setup
@@ -274,6 +384,7 @@ uv sync
 # Run tool
 uv run contiamo-release-please next-version [--verbose]
 uv run contiamo-release-please generate-changelog [--dry-run] [--verbose]
+uv run contiamo-release-please bump-files [--dry-run] [--verbose]
 
 # Run tests
 uv run python -m pytest -v
@@ -287,10 +398,19 @@ uv run pyright
 
 ### Ready for Next Session
 
-The project is fully functional for Phase 1. The `calculate_next_version()` function provides a clean interface for future features. All code follows UK spelling conventions and is well-tested.
+The project is fully functional through Phase 3.5. Key achievements:
+- ✅ Version determination from conventional commits
+- ✅ Changelog generation with customisable sections
+- ✅ File version bumping with YAML support
+- ✅ File version bumping with TOML support
+- ✅ 50 comprehensive tests, all passing
+- ✅ Full type safety and linting
+- ✅ UK spelling throughout
+- ✅ Extensible architecture for future enhancements
 
 To continue development:
 1. Navigate to the project directory
 2. Run `uv sync` to ensure dependencies are installed
-3. Review this PROGRESS.md file for context
-4. Continue with Phase 2, 3, or 4 as needed
+3. Run `task help` to see all available commands
+4. Review this PROGRESS.md file for context
+5. Next steps: Phase 4 (Release automation)

@@ -43,9 +43,15 @@ release-rules:
 #   - type: refactor
 #     section: Code Refactoring
 
-# Future: Files to bump version in
-# files-to-bump:
-#   - path: version.txt
-#     pattern: "Version: {version}"
-#   - path: pyproject.toml
-#     pattern: 'version = "{version}"'
+# Optional: Extra files to bump version in
+extra-files:
+  - type: yaml
+    path: charts/testchart/Chart.yaml
+    yaml-path: $.version
+  - type: yaml
+    path: charts/testchart/Chart.yaml
+    yaml-path: $.appVersion
+    use-prefix: "v"
+  - type: toml
+    path: pyproject.toml
+    toml-path: $.project.version

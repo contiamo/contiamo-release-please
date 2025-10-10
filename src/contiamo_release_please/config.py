@@ -125,6 +125,14 @@ class ReleaseConfig:
 
         return self._config.get("changelog-sections", default_sections)
 
+    def get_extra_files(self) -> list[dict[str, Any]]:
+        """Get extra files configuration for version bumping.
+
+        Returns:
+            List of file configuration dictionaries
+        """
+        return self._config.get("extra-files", [])
+
 
 def load_config(
     config_path: str | Path = "contiamo-release-please.yaml",

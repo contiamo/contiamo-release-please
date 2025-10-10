@@ -8,6 +8,7 @@ import click
 
 from contiamo_release_please import __version__
 from contiamo_release_please.analyser import analyse_commits, get_commit_type_summary
+from contiamo_release_please.bumper import FileBumperError, bump_files
 from contiamo_release_please.changelog import (
     format_changelog_entry,
     group_commits_by_section,
@@ -286,6 +287,101 @@ def generate_changelog(
         sys.exit(1)
     except GitError as e:
         click.echo(f"Git error: {e}", err=True)
+        sys.exit(1)
+    except Exception as e:
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
+
+
+@cli.command()
+@add_help_option
+@click.option(
+    "--config",
+    "-c",
+    default=None,
+    help="Path to configuration file (default: contiamo-release-please.yaml in git root)",
+)
+@click.option(
+    "--dry-run",
+    "-d",
+    is_flag=True,
+    help="Show what would be updated without modifying files",
+)
+@click.option(
+    "--verbose",
+    "-v",
+    is_flag=True,
+    help="Show detailed information about file bumping",
+)
+def bump_files_cmd(config: str | None, dry_run: bool, verbose: bool):
+    """Bump version in configured files.
+
+    Automatically determines the next version based on commit history
+    and updates version fields in configured files.
+    """
+    try:
+        # Calculate next version using the reusable function
+        result = calculate_next_version(config)
+        version = result["next_version"]
+
+        # Load config to get extra files settings
+        if config is None:
+            git_root = get_git_root()
+            config_path = str(git_root / "contiamo-release-please.yaml")
+        else:
+            config_path = config
+        release_config = load_config(config_path)
+
+        # Get extra files configuration
+        extra_files = release_config.get_extra_files()
+
+        if not extra_files:
+            click.echo("No extra files configured for version bumping")
+            click.echo("Add 'extra-files' section to your config file")
+            return
+
+        # Get git root
+        git_root = get_git_root()
+
+        # Verbose output
+        if verbose:
+            click.echo(f"Next version: {version}")
+            click.echo(f"Files to update: {len(extra_files)}")
+            if dry_run:
+                click.echo("Dry-run mode: no files will be modified")
+            click.echo()
+
+        # Bump files
+        results = bump_files(extra_files, version, git_root, dry_run=dry_run)
+
+        # Display results
+        if results["updated"]:
+            click.echo("Updated files:")
+            for update in results["updated"]:
+                click.echo(f"  ✓ {update}")
+
+        if results["errors"]:
+            click.echo("\nErrors:")
+            for error in results["errors"]:
+                click.echo(f"  ✗ {error}", err=True)
+
+        if dry_run:
+            click.echo("\nDry run - no files modified")
+        else:
+            click.echo(f"\nSuccessfully updated {len(results['updated'])} file(s)")
+
+        # Exit with error if there were any errors
+        if results["errors"]:
+            sys.exit(1)
+
+    except ConfigError as e:
+        click.echo(f"Configuration error: {e}", err=True)
+        sys.exit(1)
+    except GitError as e:
+        click.echo(f"Git error: {e}", err=True)
+        sys.exit(1)
+    except FileBumperError as e:
+        click.echo(f"Bumper error: {e}", err=True)
         sys.exit(1)
     except Exception as e:
         click.echo(f"Error: {e}", err=True)

@@ -12,3 +12,4 @@ results
 dist/
 build/
 *.egg-info/
+charts/
