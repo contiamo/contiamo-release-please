@@ -100,6 +100,32 @@ class ReleaseConfig:
         """
         return self._config.get("version-prefix", "")
 
+    def get_changelog_path(self) -> str:
+        """Get the changelog file path from configuration.
+
+        Returns:
+            Changelog file path or 'CHANGELOG.md' as default
+        """
+        return self._config.get("changelog-path", "CHANGELOG.md")
+
+    def get_changelog_sections(self) -> list[dict[str, str]]:
+        """Get changelog sections configuration.
+
+        Returns:
+            List of section dictionaries with 'type' and 'section' keys.
+            Returns default sections if not configured.
+        """
+        default_sections = [
+            {"type": "feat", "section": "Features"},
+            {"type": "fix", "section": "Bug Fixes"},
+            {"type": "chore", "section": "Miscellaneous Changes"},
+            {"type": "ci", "section": "Miscellaneous Changes"},
+            {"type": "docs", "section": "Documentation"},
+            {"type": "refactor", "section": "Code Refactoring"},
+        ]
+
+        return self._config.get("changelog-sections", default_sections)
+
 
 def load_config(config_path: str | Path = "contiamo-release-please.yaml") -> ReleaseConfig:
     """Load release configuration from file.

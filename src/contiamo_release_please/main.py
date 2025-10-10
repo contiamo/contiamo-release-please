@@ -7,6 +7,11 @@ import click
 
 from contiamo_release_please import __version__
 from contiamo_release_please.analyser import analyse_commits, get_commit_type_summary
+from contiamo_release_please.changelog import (
+    format_changelog_entry,
+    group_commits_by_section,
+    prepend_to_changelog,
+)
 from contiamo_release_please.config import ConfigError, load_config
 from contiamo_release_please.git import (
     GitError,
@@ -166,6 +171,114 @@ def next_version(config: str | None, verbose: bool):
 
         # Output the final version (with prefix)
         click.echo(result["next_version_prefixed"])
+
+    except ConfigError as e:
+        click.echo(f"Configuration error: {e}", err=True)
+        sys.exit(1)
+    except GitError as e:
+        click.echo(f"Git error: {e}", err=True)
+        sys.exit(1)
+    except Exception as e:
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
+
+
+@cli.command()
+@add_help_option
+@click.option(
+    "--config",
+    "-c",
+    default=None,
+    help="Path to configuration file (default: contiamo-release-please.yaml in git root)",
+)
+@click.option(
+    "--output",
+    "-o",
+    default=None,
+    help="Override changelog file path (default: from config or CHANGELOG.md)",
+)
+@click.option(
+    "--dry-run",
+    "-d",
+    is_flag=True,
+    help="Show what would be added without modifying the changelog file",
+)
+@click.option(
+    "--verbose",
+    "-v",
+    is_flag=True,
+    help="Show detailed information about changelog generation",
+)
+def generate_changelog(
+    config: str | None, output: str | None, dry_run: bool, verbose: bool
+):
+    """Generate changelog entry for the next release.
+
+    Analyses commits since the last git tag and generates a formatted
+    changelog entry based on conventional commit types.
+    """
+    try:
+        # Calculate next version using the reusable function
+        result = calculate_next_version(config)
+
+        # Load config to get changelog settings
+        if config is None:
+            git_root = get_git_root()
+            config_path = str(git_root / "contiamo-release-please.yaml")
+        else:
+            config_path = config
+        release_config = load_config(config_path)
+
+        # Determine changelog path
+        if output:
+            changelog_path = Path(output)
+        else:
+            git_root = get_git_root()
+            changelog_filename = release_config.get_changelog_path()
+            changelog_path = git_root / changelog_filename
+
+        # Check if there are any commits to process
+        if not result["commits"]:
+            click.echo("No commits found since last release")
+            click.echo("Nothing to add to changelog")
+            return
+
+        # Group commits by section
+        grouped_commits = group_commits_by_section(result["commits"], release_config)
+
+        if not grouped_commits:
+            click.echo("No conventional commits found")
+            click.echo("Nothing to add to changelog")
+            return
+
+        # Format changelog entry
+        changelog_entry = format_changelog_entry(
+            result["next_version"], grouped_commits, release_config
+        )
+
+        # Verbose output
+        if verbose:
+            click.echo(f"Version: {result['next_version']}")
+            click.echo(f"Changelog path: {changelog_path}")
+            click.echo(f"\nFound {len(result['commits'])} commits")
+            click.echo(f"Grouped into {len(grouped_commits)} sections:")
+            for section_name, commits in grouped_commits.items():
+                click.echo(f"  {section_name}: {len(commits)} commits")
+            click.echo()
+
+        # Show the changelog entry
+        if dry_run or verbose:
+            click.echo("Changelog entry:")
+            click.echo("-" * 80)
+            click.echo(changelog_entry)
+            click.echo("-" * 80)
+
+        # Write to file unless dry-run
+        if not dry_run:
+            prepend_to_changelog(changelog_path, changelog_entry)
+            click.echo(f"\nChangelog updated: {changelog_path}")
+        else:
+            click.echo("\nDry run - no files modified")
 
     except ConfigError as e:
         click.echo(f"Configuration error: {e}", err=True)

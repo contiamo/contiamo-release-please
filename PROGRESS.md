@@ -1,10 +1,11 @@
 # Contiamo Release Please - Development Progress
 
-## Project Status: Phase 1 Complete ✅
+## Project Status: Phase 2 Complete ✅
 
 ### What's Been Implemented
 
 #### Phase 1: Version Determination (COMPLETE)
+#### Phase 2: Changelog Generation (COMPLETE)
 
 **Core Functionality:**
 1. ✅ Git repository root detection via `git rev-parse --show-toplevel`
@@ -166,12 +167,47 @@ All 17 unit tests passing:
    - Or via `BREAKING CHANGE:` in commit body
    - Mapped to `breaking` type which triggers major bump
 
-### What's Next (Future Phases)
+#### Phase 2: Changelog Generation (COMPLETE)
 
-**Phase 2: Changelog Generation**
-- Read changelog config from YAML
-- Generate markdown changelog from commits
-- Customisable sections and formatting
+**Core Functionality:**
+1. ✅ `generate-changelog` CLI command
+2. ✅ Commit grouping by changelog sections (Features, Bug Fixes, etc.)
+3. ✅ Customisable changelog sections via YAML config
+4. ✅ Optional changelog path configuration (default: CHANGELOG.md)
+5. ✅ Markdown formatting matching Release Please style
+6. ✅ Prepend to existing CHANGELOG.md or create new file
+7. ✅ Dry-run mode to preview changes
+8. ✅ Verbose mode for detailed output
+9. ✅ Scope formatting (e.g., **auth**: description)
+10. ✅ Section ordering based on config
+11. ✅ Automatic header preservation
+
+**New Files:**
+- `src/contiamo_release_please/changelog.py` - Changelog generation logic
+- `tests/test_changelog.py` - 11 comprehensive tests
+
+**Modified Files:**
+- `src/contiamo_release_please/config.py` - Added `get_changelog_path()` and `get_changelog_sections()`
+- `src/contiamo_release_please/main.py` - Added `generate-changelog` command
+- `contiamo-release-please.yaml` - Added changelog configuration examples
+
+**Usage:**
+```bash
+# Generate changelog (dry-run)
+uv run contiamo-release-please generate-changelog --dry-run --verbose
+
+# Generate and write to CHANGELOG.md
+uv run contiamo-release-please generate-changelog
+
+# Custom output path
+uv run contiamo-release-please generate-changelog --output CHANGES.md
+```
+
+**Test Results:**
+- 28 tests passing (17 original + 11 new changelog tests)
+- All existing tests still pass
+
+### What's Next (Future Phases)
 
 **Phase 3: File Bumping**
 - Read `files-to-bump` from YAML

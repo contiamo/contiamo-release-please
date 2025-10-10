@@ -25,15 +25,23 @@ release-rules:
     - style
     - test
     - ci
-# Future: Changelog configuration
-# changelog:
-#   sections:
-#     - title: Features
-#       types:
-#         - feat
-#     - title: Bug Fixes
-#       types:
-#         - fix
+# Optional: Changelog file path (default: CHANGELOG.md)
+# changelog-path: "CHANGELOG.md"
+
+# Optional: Changelog sections (default shown below)
+# changelog-sections:
+#   - type: feat
+#     section: Features
+#   - type: fix
+#     section: Bug Fixes
+#   - type: chore
+#     section: Miscellaneous Changes
+#   - type: ci
+#     section: Miscellaneous Changes
+#   - type: docs
+#     section: Documentation
+#   - type: refactor
+#     section: Code Refactoring
 
 # Future: Files to bump version in
 # files-to-bump:
