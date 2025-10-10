@@ -1,0 +1,44 @@
+# Contiamo Release Please Configuration
+#
+# This file defines how commit types map to version bumps
+# following semantic versioning (major.minor.patch)
+
+# Optional: Version prefix (e.g., "v" for v1.2.0, "" for 1.2.0)
+version-prefix: "release-"
+
+release-rules:
+  # Major version bump (breaking changes)
+  major:
+    - breaking
+
+  # Minor version bump (new features)
+  minor:
+    - feat
+
+  # Patch version bump (bug fixes and minor changes)
+  patch:
+    - fix
+    - perf
+    - chore
+    - docs
+    - refactor
+    - style
+    - test
+    - ci
+
+# Future: Changelog configuration
+# changelog:
+#   sections:
+#     - title: Features
+#       types:
+#         - feat
+#     - title: Bug Fixes
+#       types:
+#         - fix
+
+# Future: Files to bump version in
+# files-to-bump:
+#   - path: version.txt
+#     pattern: "Version: {version}"
+#   - path: pyproject.toml
+#     pattern: 'version = "{version}"'

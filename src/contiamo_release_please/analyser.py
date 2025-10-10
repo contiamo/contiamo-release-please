@@ -1,0 +1,131 @@
+"""Commit message analysis for determining release types."""
+
+import re
+
+from contiamo_release_please.config import ReleaseConfig
+
+# Release type priority (higher index = higher priority)
+RELEASE_TYPE_PRIORITY = ["patch", "minor", "major"]
+
+
+def parse_commit_message(message: str) -> dict[str, str]:
+    """Parse a conventional commit message.
+
+    Args:
+        message: Commit message string
+
+    Returns:
+        Dictionary with 'type', 'scope', 'breaking', and 'description' keys
+    """
+    # Conventional commit format: type(scope)!: description
+    # Breaking change indicators: ! after type/scope, or "BREAKING CHANGE:" in body
+    pattern = r"^(?P<type>\w+)(?:\((?P<scope>[^)]+)\))?(?P<breaking>!)?\s*:\s*(?P<description>.+)$"
+
+    match = re.match(pattern, message.strip())
+
+    if match:
+        return {
+            "type": match.group("type"),
+            "scope": match.group("scope") or "",
+            "breaking": match.group("breaking") == "!",
+            "description": match.group("description"),
+        }
+
+    # If doesn't match conventional commit format, return unknown type
+    return {
+        "type": "unknown",
+        "scope": "",
+        "breaking": False,
+        "description": message.strip(),
+    }
+
+
+def check_breaking_change(message: str, parsed: dict[str, str]) -> bool:
+    """Check if commit message indicates a breaking change.
+
+    Args:
+        message: Full commit message (may include body)
+        parsed: Parsed commit dictionary
+
+    Returns:
+        True if this is a breaking change
+    """
+    # Check for ! in commit type
+    if parsed["breaking"]:
+        return True
+
+    # Check for BREAKING CHANGE: in commit body
+    if "BREAKING CHANGE:" in message.upper() or "BREAKING-CHANGE:" in message.upper():
+        return True
+
+    return False
+
+
+def analyse_commits(
+    commit_messages: list[str], config: ReleaseConfig
+) -> str | None:
+    """Analyse commit messages and determine the release type.
+
+    Args:
+        commit_messages: List of commit message strings
+        config: Release configuration
+
+    Returns:
+        Release type ('major', 'minor', 'patch') or None if no relevant commits
+    """
+    if not commit_messages:
+        return None
+
+    highest_release_type = None
+    highest_priority = -1
+
+    for message in commit_messages:
+        parsed = parse_commit_message(message)
+        commit_type = parsed["type"]
+
+        # Check for breaking changes first
+        if check_breaking_change(message, parsed):
+            commit_type = "breaking"
+
+        # Get release type for this commit type
+        release_type = config.get_release_type_for_prefix(commit_type)
+
+        if release_type:
+            # Check if this release type has higher priority
+            priority = RELEASE_TYPE_PRIORITY.index(release_type)
+            if priority > highest_priority:
+                highest_priority = priority
+                highest_release_type = release_type
+
+            # Early exit if we found a major release (highest priority)
+            if release_type == "major":
+                break
+
+    return highest_release_type
+
+
+def get_commit_type_summary(
+    commit_messages: list[str], config: ReleaseConfig
+) -> dict[str, int]:
+    """Get a summary of commit types found.
+
+    Args:
+        commit_messages: List of commit message strings
+        config: Release configuration
+
+    Returns:
+        Dictionary mapping commit types to counts
+    """
+    summary: dict[str, int] = {}
+
+    for message in commit_messages:
+        parsed = parse_commit_message(message)
+        commit_type = parsed["type"]
+
+        # Check for breaking changes
+        if check_breaking_change(message, parsed):
+            commit_type = "breaking"
+
+        summary[commit_type] = summary.get(commit_type, 0) + 1
+
+    return summary
