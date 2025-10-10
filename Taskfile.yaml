@@ -1,0 +1,53 @@
+version: 3
+
+tasks:
+  default:
+    desc: Run the default task
+    cmds:
+      - task --list
+
+  setup:
+    desc: Create the local development environment
+    cmds:
+      - task: python-setup
+
+  python-setup:
+    desc: Create Python virtualenv and install dependencies
+    cmds:
+      - uv venv
+      - uv sync
+    sources:
+      - pyproject.toml
+    generates:
+      - ".venv/*"
+
+  test:
+    desc: Run all tests
+    deps:
+      - setup
+    cmds:
+      - "uv run --frozen python -m pytest -v {{.CLI_ARGS}}"
+
+  lint:
+    desc: Lint the Python code
+    deps:
+      - setup
+    cmds:
+      - "uv run --frozen ruff check ."
+      - "uv run --frozen pyright ."
+
+  format:
+    desc: Format the Python code
+    deps:
+      - setup
+    cmds:
+      - "uv run --frozen ruff format ."
+      - "uv run --frozen ruff check --fix-only ."
+
+  clean:
+    desc: Clean the project
+    cmds:
+      - rm -rf tmp
+      - rm -rf .venv
+      - rm -rf .pytest_cache
+      - rm -rf .ruff_cache

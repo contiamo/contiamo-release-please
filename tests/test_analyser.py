@@ -1,8 +1,11 @@
 """Tests for commit analysis functionality."""
 
+from typing import cast
+
 import pytest
 
 from contiamo_release_please.analyser import (
+    ParsedCommit,
     analyse_commits,
     check_breaking_change,
     get_commit_type_summary,
@@ -73,18 +76,27 @@ class TestCheckBreakingChange:
 
     def test_breaking_with_exclamation(self):
         """Test detecting breaking change with ! in commit type."""
-        parsed = {"breaking": True, "type": "feat"}
+        parsed = cast(
+            ParsedCommit,
+            {"breaking": True, "type": "feat", "scope": "", "description": "test"},
+        )
         assert check_breaking_change("feat!: test", parsed) is True
 
     def test_breaking_with_footer(self):
         """Test detecting breaking change in commit body."""
-        parsed = {"breaking": False, "type": "feat"}
+        parsed = cast(
+            ParsedCommit,
+            {"breaking": False, "type": "feat", "scope": "", "description": "test"},
+        )
         message = "feat: test\n\nBREAKING CHANGE: this breaks things"
         assert check_breaking_change(message, parsed) is True
 
     def test_not_breaking(self):
         """Test non-breaking commit."""
-        parsed = {"breaking": False, "type": "feat"}
+        parsed = cast(
+            ParsedCommit,
+            {"breaking": False, "type": "feat", "scope": "", "description": "test"},
+        )
         assert check_breaking_change("feat: test", parsed) is False
 
 

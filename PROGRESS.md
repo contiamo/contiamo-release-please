@@ -245,15 +245,38 @@ uv run contiamo-release-please generate-changelog --output CHANGES.md
 
 ### Quick Reference Commands
 
+**Using Taskfile (Recommended):**
+```bash
+# List all available tasks
+task
+
+# Setup environment (create venv + install deps)
+task setup
+
+# Run tests
+task test
+
+# Lint code
+task lint
+
+# Format code
+task format
+
+# Clean project
+task clean
+```
+
+**Direct commands:**
 ```bash
 # Install dependencies
 uv sync
 
 # Run tool
 uv run contiamo-release-please next-version [--verbose]
+uv run contiamo-release-please generate-changelog [--dry-run] [--verbose]
 
 # Run tests
-uv run pytest -v
+uv run python -m pytest -v
 
 # Lint
 uv run ruff check .

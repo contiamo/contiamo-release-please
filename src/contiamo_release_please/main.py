@@ -2,6 +2,7 @@
 
 import sys
 from pathlib import Path
+from typing import Any
 
 import click
 
@@ -29,7 +30,7 @@ def add_help_option(f):
     return f
 
 
-def calculate_next_version(config_path: str | None = None) -> dict[str, any]:
+def calculate_next_version(config_path: str | None = None) -> dict[str, Any]:
     """Calculate the next semantic version based on commit history.
 
     Args:

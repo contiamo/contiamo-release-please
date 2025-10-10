@@ -1,14 +1,25 @@
 """Commit message analysis for determining release types."""
 
 import re
+from typing import TypedDict
 
 from contiamo_release_please.config import ReleaseConfig
+
+
+class ParsedCommit(TypedDict):
+    """Parsed conventional commit structure."""
+
+    type: str
+    scope: str
+    breaking: bool
+    description: str
+
 
 # Release type priority (higher index = higher priority)
 RELEASE_TYPE_PRIORITY = ["patch", "minor", "major"]
 
 
-def parse_commit_message(message: str) -> dict[str, str]:
+def parse_commit_message(message: str) -> ParsedCommit:
     """Parse a conventional commit message.
 
     Args:
@@ -40,7 +51,7 @@ def parse_commit_message(message: str) -> dict[str, str]:
     }
 
 
-def check_breaking_change(message: str, parsed: dict[str, str]) -> bool:
+def check_breaking_change(message: str, parsed: ParsedCommit) -> bool:
     """Check if commit message indicates a breaking change.
 
     Args:
@@ -61,9 +72,7 @@ def check_breaking_change(message: str, parsed: dict[str, str]) -> bool:
     return False
 
 
-def analyse_commits(
-    commit_messages: list[str], config: ReleaseConfig
-) -> str | None:
+def analyse_commits(commit_messages: list[str], config: ReleaseConfig) -> str | None:
     """Analyse commit messages and determine the release type.
 
     Args:

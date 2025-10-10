@@ -1,6 +1,5 @@
 """Configuration loading and parsing for contiamo-release-please."""
 
-import os
 from pathlib import Path
 from typing import Any
 
@@ -127,7 +126,9 @@ class ReleaseConfig:
         return self._config.get("changelog-sections", default_sections)
 
 
-def load_config(config_path: str | Path = "contiamo-release-please.yaml") -> ReleaseConfig:
+def load_config(
+    config_path: str | Path = "contiamo-release-please.yaml",
+) -> ReleaseConfig:
     """Load release configuration from file.
 
     Args:

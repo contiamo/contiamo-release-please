@@ -3,13 +3,13 @@
 from datetime import datetime
 from pathlib import Path
 
-from contiamo_release_please.analyser import parse_commit_message
+from contiamo_release_please.analyser import ParsedCommit, parse_commit_message
 from contiamo_release_please.config import ReleaseConfig
 
 
 def group_commits_by_section(
     commit_messages: list[str], config: ReleaseConfig
-) -> dict[str, list[dict[str, str]]]:
+) -> dict[str, list[ParsedCommit]]:
     """Group commits by their changelog section.
 
     Args:
@@ -29,7 +29,7 @@ def group_commits_by_section(
         type_to_section[commit_type] = section_name
 
     # Group commits by section
-    grouped: dict[str, list[dict[str, str]]] = {}
+    grouped: dict[str, list[ParsedCommit]] = {}
 
     for message in commit_messages:
         parsed = parse_commit_message(message)
@@ -55,7 +55,7 @@ def group_commits_by_section(
 
 def format_changelog_entry(
     version: str,
-    grouped_commits: dict[str, list[dict[str, str]]],
+    grouped_commits: dict[str, list[ParsedCommit]],
     config: ReleaseConfig,
     date: str | None = None,
 ) -> str:

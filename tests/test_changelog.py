@@ -2,9 +2,11 @@
 
 import tempfile
 from pathlib import Path
+from typing import cast
 
 import pytest
 
+from contiamo_release_please.analyser import ParsedCommit
 from contiamo_release_please.changelog import (
     format_changelog_entry,
     group_commits_by_section,
@@ -125,10 +127,26 @@ def test_format_changelog_entry_basic(temp_config_file):
 
     grouped = {
         "Features": [
-            {"type": "feat", "scope": "", "breaking": False, "description": "add user authentication"}
+            cast(
+                ParsedCommit,
+                {
+                    "type": "feat",
+                    "scope": "",
+                    "breaking": False,
+                    "description": "add user authentication",
+                },
+            )
         ],
         "Bug Fixes": [
-            {"type": "fix", "scope": "", "breaking": False, "description": "correct login redirect"}
+            cast(
+                ParsedCommit,
+                {
+                    "type": "fix",
+                    "scope": "",
+                    "breaking": False,
+                    "description": "correct login redirect",
+                },
+            )
         ],
     }
 
@@ -147,10 +165,26 @@ def test_format_changelog_entry_with_scopes(temp_config_file):
 
     grouped = {
         "Features": [
-            {"type": "feat", "scope": "auth", "breaking": False, "description": "add user authentication"}
+            cast(
+                ParsedCommit,
+                {
+                    "type": "feat",
+                    "scope": "auth",
+                    "breaking": False,
+                    "description": "add user authentication",
+                },
+            )
         ],
         "Bug Fixes": [
-            {"type": "fix", "scope": "ui", "breaking": False, "description": "correct login redirect"}
+            cast(
+                ParsedCommit,
+                {
+                    "type": "fix",
+                    "scope": "ui",
+                    "breaking": False,
+                    "description": "correct login redirect",
+                },
+            )
         ],
     }
 
@@ -166,13 +200,37 @@ def test_format_changelog_entry_section_order(temp_config_file):
 
     grouped = {
         "Documentation": [
-            {"type": "docs", "scope": "", "breaking": False, "description": "update README"}
+            cast(
+                ParsedCommit,
+                {
+                    "type": "docs",
+                    "scope": "",
+                    "breaking": False,
+                    "description": "update README",
+                },
+            )
         ],
         "Features": [
-            {"type": "feat", "scope": "", "breaking": False, "description": "add feature"}
+            cast(
+                ParsedCommit,
+                {
+                    "type": "feat",
+                    "scope": "",
+                    "breaking": False,
+                    "description": "add feature",
+                },
+            )
         ],
         "Bug Fixes": [
-            {"type": "fix", "scope": "", "breaking": False, "description": "fix bug"}
+            cast(
+                ParsedCommit,
+                {
+                    "type": "fix",
+                    "scope": "",
+                    "breaking": False,
+                    "description": "fix bug",
+                },
+            )
         ],
     }
 
