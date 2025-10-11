@@ -1,5 +1,8 @@
 # Contiamo Release Please
 
+It's exactly like Google's Release-Please but for any flavour of git. Not just Github. 
+Provider agnostic Release Please. 
+
 Automated semantic versioning and release management based on conventional commits.
 
 ## TL;DR
