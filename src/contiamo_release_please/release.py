@@ -9,6 +9,7 @@ import click
 from contiamo_release_please.analyser import (
     analyse_commits,
     get_commit_type_summary,
+    is_release_commit,
     parse_commit_message,
 )
 from contiamo_release_please.bumper import bump_files
@@ -272,7 +273,21 @@ def create_release_branch_workflow(
     else:
         current_version_str = None
 
-    commits = get_commits_since_tag(latest_tag, git_root)
+    # Get all commits since last tag
+    all_commits = get_commits_since_tag(latest_tag, git_root)
+    if not all_commits:
+        raise ReleaseError("No commits since last release")
+
+    # Filter out release infrastructure commits
+    commits = [c for c in all_commits if not is_release_commit(c, release_branch)]
+
+    # Check if only release commits exist (user forgot to run tag-release)
+    if not commits and all_commits:
+        raise ReleaseError(
+            "Only release infrastructure commits found since last tag. "
+            "Please run 'contiamo-release-please tag-release' to tag the merged release."
+        )
+
     if not commits:
         raise ReleaseError("No commits since last release")
 

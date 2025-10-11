@@ -138,3 +138,29 @@ def get_commit_type_summary(
         summary[commit_type] = summary.get(commit_type, 0) + 1
 
     return summary
+
+
+def is_release_commit(commit_message: str, release_branch_name: str) -> bool:
+    """Check if commit is a release infrastructure commit that should be excluded from analysis.
+
+    Release infrastructure commits are created by the tool itself during the release process
+    and should not trigger new releases or appear in changelogs.
+
+    Args:
+        commit_message: The commit message to check
+        release_branch_name: Name of the release branch (e.g., 'release-please--branches--main')
+
+    Returns:
+        True if this is a release infrastructure commit, False otherwise
+    """
+    # Pattern 1: Merge from release branch (standard merge)
+    # Example: "Merge branch 'release-please--branches--main' into main"
+    if f"Merge branch '{release_branch_name}'" in commit_message:
+        return True
+
+    # Pattern 2: Release update commit (squash merge)
+    # Example: "chore(main): update files for release 1.2.3"
+    if re.match(r"^chore\([^)]+\):\s+update files for release", commit_message):
+        return True
+
+    return False

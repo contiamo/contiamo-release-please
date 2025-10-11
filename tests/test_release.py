@@ -241,18 +241,46 @@ def test_create_release_branch_workflow_no_releasable_commits():
          patch("contiamo_release_please.release.load_config") as mock_config, \
          patch("contiamo_release_please.release.get_latest_tag") as mock_tag, \
          patch("contiamo_release_please.release.get_commits_since_tag") as mock_commits, \
+         patch("contiamo_release_please.release.is_release_commit") as mock_is_release, \
          patch("contiamo_release_please.release.analyse_commits") as mock_analyse:
 
         mock_git_root.return_value = Path("/tmp/repo")
         mock_config_obj = Mock()
         mock_config_obj.get_source_branch.return_value = "main"
+        mock_config_obj.get_release_branch_name.return_value = "release-please--branches--main"
         mock_config.return_value = mock_config_obj
 
         mock_tag.return_value = "v1.0.0"
         mock_commits.return_value = ["docs: update docs"]
+        mock_is_release.return_value = False  # Not a release commit
         mock_analyse.return_value = None  # No releasable commits
 
         with pytest.raises(ReleaseError, match="No releasable commits found"):
+            create_release_branch_workflow()
+
+
+def test_create_release_branch_workflow_only_release_commits():
+    """Test workflow fails when only release infrastructure commits found."""
+    with patch("contiamo_release_please.release.get_git_root") as mock_git_root, \
+         patch("contiamo_release_please.release.load_config") as mock_config, \
+         patch("contiamo_release_please.release.get_latest_tag") as mock_tag, \
+         patch("contiamo_release_please.release.get_commits_since_tag") as mock_commits, \
+         patch("contiamo_release_please.release.is_release_commit") as mock_is_release:
+
+        mock_git_root.return_value = Path("/tmp/repo")
+        mock_config_obj = Mock()
+        mock_config_obj.get_source_branch.return_value = "main"
+        mock_config_obj.get_release_branch_name.return_value = "release-please--branches--main"
+        mock_config.return_value = mock_config_obj
+
+        mock_tag.return_value = "v1.0.0"
+        mock_commits.return_value = ["chore(main): update files for release 1.0.0"]
+        mock_is_release.return_value = True  # This is a release commit
+
+        with pytest.raises(
+            ReleaseError,
+            match="Only release infrastructure commits found since last tag"
+        ):
             create_release_branch_workflow()
 
 

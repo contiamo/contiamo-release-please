@@ -190,3 +190,58 @@ class TestGetCommitTypeSummary:
         summary = get_commit_type_summary(commits, config)
         assert summary["breaking"] == 1
         assert summary["feat"] == 1
+
+
+class TestIsReleaseCommit:
+    """Tests for is_release_commit function."""
+
+    def test_merge_from_release_branch(self):
+        """Test detecting merge commit from release branch."""
+        from contiamo_release_please.analyser import is_release_commit
+
+        commit = "Merge branch 'release-please--branches--main' into main"
+        release_branch = "release-please--branches--main"
+
+        assert is_release_commit(commit, release_branch) is True
+
+    def test_squash_merge_release_commit(self):
+        """Test detecting squash merged release commit."""
+        from contiamo_release_please.analyser import is_release_commit
+
+        commit = "chore(main): update files for release 1.2.3"
+        release_branch = "release-please--branches--main"
+
+        assert is_release_commit(commit, release_branch) is True
+
+    def test_regular_commit_not_release(self):
+        """Test that regular commits are not detected as release commits."""
+        from contiamo_release_please.analyser import is_release_commit
+
+        release_branch = "release-please--branches--main"
+
+        # Regular feature commit
+        assert is_release_commit("feat: add new feature", release_branch) is False
+
+        # Regular chore commit (not release-related)
+        assert is_release_commit("chore: update dependencies", release_branch) is False
+
+        # Fix commit
+        assert is_release_commit("fix: resolve bug", release_branch) is False
+
+    def test_custom_release_branch_name(self):
+        """Test detecting merge with custom release branch name."""
+        from contiamo_release_please.analyser import is_release_commit
+
+        commit = "Merge branch 'custom-release-branch' into develop"
+        release_branch = "custom-release-branch"
+
+        assert is_release_commit(commit, release_branch) is True
+
+    def test_release_commit_with_different_scope(self):
+        """Test detecting release commit with different scope."""
+        from contiamo_release_please.analyser import is_release_commit
+
+        commit = "chore(develop): update files for release 2.0.0"
+        release_branch = "release-please--branches--develop"
+
+        assert is_release_commit(commit, release_branch) is True
