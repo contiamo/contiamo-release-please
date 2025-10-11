@@ -4,6 +4,27 @@
 
 ### Features
 
+* Add PR creation to release flow
+* Add release branch operations
+* Add yaml and toml file bumber
+* Add changelog generation
+* Initial project bootstrap
+
+### Bug Fixes
+
+* A bug that bumped version twice during release
+
+### Miscellaneous Changes
+
+* bump pyproject
+* Update task, changelog
+* Add taskfile and fix linting errors
+* change prefix in configfile
+
+## [0.1.0] (2025-10-11)
+
+### Features
+
 * Add changelog generation
 * Initial project bootstrap
 
