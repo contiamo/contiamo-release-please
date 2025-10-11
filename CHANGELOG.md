@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.1.1] (2025-10-11)
+
+### Bug Fixes
+
+* Ensure git ID is set up
+* Return to base branch after release flow
+* Ensure release commits are not in the changelog
+
+### Miscellaneous Changes
+
+* Remove test files from release please config
+* Add CI
+
 ## [0.1.0] (2025-10-11)
 
 ### Features
