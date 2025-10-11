@@ -1,6 +1,6 @@
 # Contiamo Release Please - Development Progress
 
-## Project Status: Phase 7 Complete ✅
+## Project Status: Phase 8 Complete ✅
 
 ### What's Been Implemented
 
@@ -650,15 +650,62 @@ No additional configuration needed - uses existing GITHUB_TOKEN from environment
 ✅ Consistent release information across PR, tag, and GitHub Release
 ✅ Zero-configuration for GitHub users
 
-### What's Next (Future Phases)
+#### Phase 8: Config Generation Command (COMPLETE)
 
-**Phase 8: Config Generation Command (Future)**
-- `init` or `generate-config` CLI command
-- Generate full `contiamo-release-please.yaml` with all options
-- Include sensible defaults for all settings
-- Comment out optional sections clearly marked as "(Optional)"
-- Interactive mode to prompt for common values
-- Makes onboarding easier for new users
+**Core Functionality:**
+1. ✅ `generate-config` CLI command
+2. ✅ Generates complete YAML configuration template
+3. ✅ All parameters documented inline with comments
+4. ✅ Required vs optional parameters clearly marked
+5. ✅ Default values shown for all optional parameters
+6. ✅ Examples for complex parameters (extra-files, changelog-sections)
+
+**New Functions:**
+- `generate_config_template()` in `config.py` - Generates complete template with documentation
+
+**Modified Files:**
+- `src/contiamo_release_please/config.py` - Added template generation function (+158 lines)
+- `src/contiamo_release_please/main.py` - Added generate-config CLI command (+32 lines)
+- `tests/test_config.py` - New file with 14 comprehensive tests (+155 lines)
+- `README.md` - Added "Generate Configuration Template" section
+- `PROGRESS.md` - Updated to Phase 8 complete
+
+**Generated Template Includes:**
+- **Required parameters:** release-rules with major/minor/patch
+- **Optional parameters with defaults:** version-prefix, changelog-path, source-branch, release-branch-name, git identity, changelog-sections, extra-files
+- **Optional parameters (env vars):** github.token, azure.token
+- **Documentation:** Type information, default values, usage examples
+- **Examples:** YAML files, TOML files, generic files with markers
+- **Categories:** Clearly separated required vs optional configuration
+
+**Usage:**
+```bash
+# Generate and save to file
+contiamo-release-please generate-config > contiamo-release-please.yaml
+
+# View template
+contiamo-release-please generate-config
+
+# Customise for project
+contiamo-release-please generate-config > my-config.yaml
+# Edit my-config.yaml
+contiamo-release-please release -c my-config.yaml
+```
+
+**Test Results:**
+- 117 tests passing (103 existing + 14 new config tests)
+- All type checks passing (pyright)
+- All lint checks passing (ruff)
+
+**Benefits:**
+✅ Quick project bootstrapping
+✅ Self-documenting configuration
+✅ Reduces configuration errors
+✅ Shows all available options
+✅ Includes examples for complex features
+✅ No need to reference documentation for parameters
+
+### What's Next (Future Phases)
 
 ### File Locations
 
@@ -736,7 +783,7 @@ uv run pyright
 
 ### Ready for Next Session
 
-The project is fully functional through Phase 7. Key achievements:
+The project is fully functional through Phase 8. Key achievements:
 - ✅ Version determination from conventional commits
 - ✅ Changelog generation with customisable sections
 - ✅ File version bumping with YAML, TOML, and generic (marker-based) support
@@ -746,7 +793,7 @@ The project is fully functional through Phase 7. Key achievements:
 - ✅ GitHub release creation with changelog content
 - ✅ Release commit filtering (prevents duplicate PRs, clean changelogs)
 - ✅ Git identity configuration (fixes CI environments)
-- ✅ 102 comprehensive tests, all passing
+- ✅ 117 comprehensive tests, all passing
 - ✅ Full type safety and linting
 - ✅ UK spelling throughout
 - ✅ Complete two-stage release workflow matching Google release-please
@@ -756,4 +803,4 @@ To continue development:
 2. Run `uv sync` to ensure dependencies are installed
 3. Run `task help` to see all available commands
 4. Review this PROGRESS.md file for context
-5. Next steps: Phase 8 (Config Generation Command), GitLab release support
+5. Next steps: GitLab release support, interactive config generation mode

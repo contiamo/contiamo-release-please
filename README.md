@@ -156,7 +156,24 @@ This works automatically for GitHub repositories (detected from remote URL).
 
 ## Configuration
 
-Create `contiamo-release-please.yaml` in your repository root:
+### Generate Configuration Template
+
+Quickly bootstrap your configuration using the built-in generator:
+
+```bash
+# Generate a complete configuration template with all parameters documented
+contiamo-release-please generate-config > contiamo-release-please.yaml
+```
+
+The generated template includes:
+- All required and optional parameters with inline documentation
+- Default values for optional parameters
+- Examples for complex configurations (extra-files, changelog sections, etc.)
+- Comments explaining what each parameter does
+
+### Manual Configuration
+
+Alternatively, create `contiamo-release-please.yaml` in your repository root:
 
 ```yaml
 # Optional: Version prefix (default: "")

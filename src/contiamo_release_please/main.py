@@ -507,5 +507,38 @@ def tag_release(config: str | None, dry_run: bool, verbose: bool):
         sys.exit(1)
 
 
+@cli.command()
+@add_help_option
+def generate_config():
+    """Generate a complete configuration file template.
+
+    Outputs a fully documented configuration template to stdout with all
+    available parameters, their types, defaults, and comprehensive examples.
+
+    The generated template includes:
+    - All required and optional parameters
+    - Inline documentation for each parameter
+    - Default values for optional parameters
+    - Examples for complex configuration (e.g., extra-files)
+    - Comments explaining what each parameter does
+
+    Usage:
+        # Generate config and save to file
+        contiamo-release-please generate-config > contiamo-release-please.yaml
+
+        # View the template
+        contiamo-release-please generate-config
+
+        # Generate and customise
+        contiamo-release-please generate-config > my-config.yaml
+        # Edit my-config.yaml to customise
+        contiamo-release-please release -c my-config.yaml
+    """
+    from contiamo_release_please.config import generate_config_template
+
+    template = generate_config_template()
+    click.echo(template)
+
+
 if __name__ == "__main__":
     cli()
