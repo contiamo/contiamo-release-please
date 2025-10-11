@@ -22,7 +22,7 @@ from contiamo_release_please.git import (
     get_git_root,
     get_latest_tag,
 )
-from contiamo_release_please.version import FIRST_RELEASE, bump_version, parse_version
+from contiamo_release_please.version import get_next_version, parse_version
 
 
 class ReleaseError(Exception):
@@ -263,8 +263,8 @@ def create_release_branch_workflow(
     # Parse commits for changelog
     parsed_commits = [parse_commit_message(c) for c in commits]
 
-    # Use first release if no current version
-    next_version = bump_version(current_version_str or FIRST_RELEASE, release_type)
+    # Calculate next version (handles first release correctly)
+    next_version = get_next_version(current_version_str, release_type)
     next_version_prefixed = f"{version_prefix}{next_version}"
 
     # Show what will be done
