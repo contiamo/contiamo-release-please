@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.2.0] (2025-10-11)
+
+### Features
+
+* Add support for generic file bumping
+
 ## [0.1.1] (2025-10-11)
 
 ### Bug Fixes
