@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.3.0] (2025-10-11)
+
+### Features
+
+* Add Github release after tag creation when on Github
+
 ## [0.2.0] (2025-10-11)
 
 ### Features
