@@ -20,16 +20,16 @@ contiamo-release-please tag-release -v
 
 ## Installation
 
-Install from PyPI:
+Install using uv:
 
 ```bash
-pip install contiamo-release-please
+uv tool install git+ssh://git@github.com/contiamo/contiamo-release-please.git@v0.1.0
 ```
 
-Or using uv:
+To upgrade to a specific version, use the `--force` flag:
 
 ```bash
-uv pip install contiamo-release-please
+uv tool install --force git+ssh://git@github.com/contiamo/contiamo-release-please.git@v0.1.0
 ```
 
 ## GitHub Actions Example
@@ -53,8 +53,11 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
       - name: Install tool
-        run: pip install contiamo-release-please
+        run: uv tool install git+ssh://git@github.com/contiamo/contiamo-release-please.git@v0.1.0
 
       - name: Create release PR
         run: contiamo-release-please release -v
@@ -71,8 +74,11 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
       - name: Install tool
-        run: pip install contiamo-release-please
+        run: uv tool install git+ssh://git@github.com/contiamo/contiamo-release-please.git@v0.1.0
 
       - name: Create and push tag
         run: contiamo-release-please tag-release -v
