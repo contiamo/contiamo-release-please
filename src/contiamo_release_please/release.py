@@ -19,6 +19,7 @@ from contiamo_release_please.changelog import (
 )
 from contiamo_release_please.config import load_config
 from contiamo_release_please.git import (
+    checkout_branch,
     create_tag,
     get_commits_since_tag,
     get_current_branch,
@@ -533,9 +534,16 @@ def create_release_branch_workflow(
         except AzureDevOpsError as e:
             raise ReleaseError(f"Azure DevOps PR creation failed: {e}")
 
+    # Switch back to source branch
+    if verbose:
+        click.echo(f"\nSwitching back to '{source_branch}'...")
+
+    checkout_branch(source_branch, git_root)
+
     # Success message
     click.echo(f"\n✓ Release branch created/updated: {release_branch}")
     click.echo(f"✓ Version: {next_version_prefixed}")
+    click.echo(f"✓ Switched back to: {source_branch}")
 
     # PR is always created at this point, no need for manual steps message
 

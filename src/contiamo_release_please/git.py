@@ -253,6 +253,28 @@ def push_tag(tag_name: str, git_root: Path) -> None:
         raise GitError(f"Failed to push tag '{tag_name}': {stderr}")
 
 
+def checkout_branch(branch_name: str, git_root: Path) -> None:
+    """Checkout a git branch.
+
+    Args:
+        branch_name: Name of the branch to checkout
+        git_root: Git repository root path
+
+    Raises:
+        GitError: If checkout fails
+    """
+    try:
+        subprocess.run(
+            ["git", "checkout", branch_name],
+            cwd=git_root,
+            check=True,
+            capture_output=True,
+        )
+    except subprocess.CalledProcessError as e:
+        stderr = e.stderr.decode().strip() if e.stderr else ""
+        raise GitError(f"Failed to checkout branch '{branch_name}': {stderr}")
+
+
 def detect_git_host(git_root: Path) -> str | None:
     """Detect git hosting provider from remote URL.
 

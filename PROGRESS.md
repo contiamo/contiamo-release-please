@@ -1,6 +1,6 @@
 # Contiamo Release Please - Development Progress
 
-## Project Status: Phase 4 Complete ✅
+## Project Status: Phase 5 Complete ✅ + Bug Fix Applied
 
 ### What's Been Implemented
 
@@ -46,7 +46,7 @@ contiamo-release-please/
     ├── test_bumper.py (22 tests)
     └── test_release.py (20 tests)
 
-Total: 70 tests, all passing ✅
+Total: 82 tests, all passing ✅
 ```
 
 ### Configuration File
@@ -379,24 +379,141 @@ uv run contiamo-release-please release --config /path/to/config.yaml
 - All type checks passing (pyright)
 - All lint checks passing (ruff)
 
-**Architecture for Future:**
-- Ready to add PR creation in Phase 5
-- Abstract `PRCreator` base class can be added
-- Implementations: `GitHubPRCreator`, `GitLabPRCreator`, `AzureDevOpsPRCreator`
-- `release` command will be extended, not replaced
+#### Phase 5: Pull Request Creation (COMPLETE)
+
+**Core Functionality:**
+1. ✅ GitHub PR creation and update via REST API
+2. ✅ Azure DevOps PR creation and update via REST API
+3. ✅ Auto-detection of git hosting provider from remote URL
+4. ✅ Credential validation (errors if missing)
+5. ✅ PR title format: `chore(main): release {version}` (matches Google release-please)
+6. ✅ PR body: Full changelog entry
+7. ✅ Update existing PR if already open
+8. ✅ version.txt file creation for post-merge workflows
+
+**New Modules:**
+- `src/contiamo_release_please/github.py` - GitHub REST API integration
+- `src/contiamo_release_please/azure.py` - Azure DevOps REST API integration
+
+**Key Functions:**
+- `detect_git_host()` - Auto-detect GitHub/Azure from remote URL
+- `get_github_token()` / `get_azure_token()` - Credential management
+- `get_repo_info()` / `get_azure_repo_info()` - Parse remote URL
+- `create_or_update_pr()` - Create new PR or update existing
+- `write_version_file()` - Create version.txt at repo root
+
+**Modified Files:**
+- `src/contiamo_release_please/release.py` - Integrated PR creation into workflow
+- `src/contiamo_release_please/git.py` - Added `detect_git_host()` function
+- `src/contiamo_release_please/main.py` - Added `--git-host` option
+- `contiamo-release-please.yaml` - Added GitHub and Azure DevOps config sections
+- `docs/AUTHENTICATION.md` - Comprehensive authentication guide
+- `README.md` - Updated with PR creation examples
+- `pyproject.toml` - Added `requests>=2.31.0` dependency
+
+**Configuration:**
+```yaml
+# Optional: GitHub PR creation
+github:
+  token: "ghp_xxx"  # Or set GITHUB_TOKEN environment variable
+
+# Optional: Azure DevOps PR creation
+azure:
+  token: "xxx"  # Or set AZURE_DEVOPS_TOKEN environment variable
+```
+
+**Usage:**
+```bash
+# Auto-detect git host and create PR
+export GITHUB_TOKEN="ghp_xxx"
+uv run contiamo-release-please release
+
+# Explicit git host
+uv run contiamo-release-please release --git-host github
+
+# Azure DevOps
+export AZURE_DEVOPS_TOKEN="your-token"
+uv run contiamo-release-please release --git-host azure
+```
+
+**Test Results:**
+- 76 tests passing (70 existing + 6 new tag-release tests)
+- All type checks passing (pyright)
+- All lint checks passing (ruff)
+
+#### Phase 6: Git Tag Creation (COMPLETE)
+
+**Core Functionality:**
+1. ✅ `tag-release` CLI command for post-merge git tag creation
+2. ✅ Reads version from version.txt (created by `release` command)
+3. ✅ Creates annotated git tag with release message
+4. ✅ Pushes tag to remote origin
+5. ✅ Validation: Must not be on release branch
+6. ✅ Validation: Tag must not already exist
+7. ✅ Dry-run and verbose modes
+
+**New Functions in git.py:**
+- `get_current_branch()` - Get current git branch name
+- `tag_exists()` - Check if tag exists locally or remotely
+- `create_tag()` - Create annotated git tag
+- `push_tag()` - Push tag to remote origin
+
+**New Function in release.py:**
+- `tag_release_workflow()` - Orchestrate tag creation with validation
+
+**Modified Files:**
+- `src/contiamo_release_please/git.py` - Added 4 git tag functions
+- `src/contiamo_release_please/release.py` - Added tag_release_workflow()
+- `src/contiamo_release_please/main.py` - Added `tag-release` command
+- `README.md` - Added two-stage workflow documentation with CI/CD examples
+- `Taskfile.yaml` - Added tag-release examples to help
+
+**Two-Stage Workflow:**
+```bash
+# Stage 1: Create release PR
+contiamo-release-please release
+
+# Stage 2: After merging PR, create git tag
+contiamo-release-please tag-release
+```
+
+**Test Results:**
+- 76 tests passing (70 existing + 6 new tag tests)
+- All type checks passing (pyright)
+- All lint checks passing (ruff)
+
+#### Bug Fix: Filter Release Infrastructure Commits (COMPLETE)
+
+**Problem Fixed:**
+1. ❌ Running `release` after merging PR (without `tag-release`) created duplicate PRs
+2. ❌ Release merge commits appeared in changelog and affected version calculation
+
+**Solution Implemented:**
+- `is_release_commit()` in `analyser.py` - Detects release infrastructure commits
+- Updated `create_release_branch_workflow()` - Filters commits before analysis
+- Special error when only release commits found (reminds user to run `tag-release`)
+
+**Patterns Detected:**
+- Merge commits: `"Merge branch 'release-please--branches--main' into main"`
+- Squash commits: `"chore(main): update files for release 1.2.3"`
+
+**Test Results:**
+- 82 tests passing (76 existing + 5 is_release_commit tests + 1 workflow test)
+- All type checks passing (pyright)
+- All lint checks passing (ruff)
+
+**Benefits:**
+✅ Prevents duplicate PRs when user forgets `tag-release`
+✅ Excludes release commits from changelog
+✅ Excludes release commits from version calculation
+✅ Clear error message guides users through correct workflow
+✅ Works correctly when new commits added after merge
 
 ### What's Next (Future Phases)
 
-**Phase 5: Pull Request Creation**
-- Auto-create PRs on GitHub, GitLab, Azure DevOps
-- PR title: `chore(main): release {version}`
-- PR body: Changelog entry
-- Update existing PR if already open
-- Configurable git provider
-
-**Phase 6: Release Finalisation**
-- Create git tags when release PR is merged
-- Create GitHub/GitLab releases
+**Phase 7: Platform-Specific Releases (Future)**
+- Create GitHub Releases with release notes
+- Create GitLab Releases
 - Attach assets to releases
 - Trigger downstream workflows
 
@@ -419,6 +536,7 @@ uv run contiamo-release-please release --config /path/to/config.yaml
 - packaging >= 24.0
 - jsonpath-ng >= 1.6.0
 - tomlkit >= 0.12.0
+- requests >= 2.31.0
 
 **Dev:**
 - pytest >= 8.3.2
@@ -461,6 +579,7 @@ uv run contiamo-release-please next-version [--verbose]
 uv run contiamo-release-please generate-changelog [--dry-run] [--verbose]
 uv run contiamo-release-please bump-files [--dry-run] [--verbose]
 uv run contiamo-release-please release [--dry-run] [--verbose]
+uv run contiamo-release-please tag-release [--dry-run] [--verbose]
 
 # Run tests
 uv run python -m pytest -v
@@ -474,19 +593,22 @@ uv run pyright
 
 ### Ready for Next Session
 
-The project is fully functional through Phase 4. Key achievements:
+The project is fully functional through Phase 6 + Bug Fix. Key achievements:
 - ✅ Version determination from conventional commits
 - ✅ Changelog generation with customisable sections
 - ✅ File version bumping with YAML and TOML support
 - ✅ Release branch creation and management (force-update strategy)
-- ✅ 70 comprehensive tests, all passing
+- ✅ GitHub and Azure DevOps PR creation/update (auto-detection)
+- ✅ Git tag creation workflow (post-merge)
+- ✅ Release commit filtering (prevents duplicate PRs, clean changelogs)
+- ✅ 82 comprehensive tests, all passing
 - ✅ Full type safety and linting
 - ✅ UK spelling throughout
-- ✅ Extensible architecture ready for PR creation
+- ✅ Complete two-stage release workflow matching Google release-please
 
 To continue development:
 1. Navigate to the project directory
 2. Run `uv sync` to ensure dependencies are installed
 3. Run `task help` to see all available commands
 4. Review this PROGRESS.md file for context
-5. Next steps: Phase 5 (PR creation for GitHub/GitLab/Azure DevOps)
+5. Next steps: Phase 7 (Platform-specific Releases: GitHub Releases, GitLab Releases)

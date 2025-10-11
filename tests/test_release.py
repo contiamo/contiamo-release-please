@@ -284,6 +284,63 @@ def test_create_release_branch_workflow_only_release_commits():
             create_release_branch_workflow()
 
 
+def test_create_release_branch_workflow_switches_back_to_source():
+    """Test workflow switches back to source branch after completion."""
+    with patch("contiamo_release_please.release.get_git_root") as mock_git_root, \
+         patch("contiamo_release_please.release.load_config") as mock_config, \
+         patch("contiamo_release_please.release.get_latest_tag") as mock_tag, \
+         patch("contiamo_release_please.release.parse_version") as mock_parse, \
+         patch("contiamo_release_please.release.get_commits_since_tag") as mock_commits, \
+         patch("contiamo_release_please.release.is_release_commit") as mock_is_release, \
+         patch("contiamo_release_please.release.analyse_commits") as mock_analyse, \
+         patch("contiamo_release_please.release.get_commit_type_summary") as mock_summary, \
+         patch("contiamo_release_please.release.parse_commit_message") as mock_parse_msg, \
+         patch("contiamo_release_please.release.get_next_version") as mock_next_version, \
+         patch("contiamo_release_please.git.detect_git_host") as mock_detect_host, \
+         patch("contiamo_release_please.github.get_github_token") as mock_get_token, \
+         patch("contiamo_release_please.release.create_or_reset_release_branch"), \
+         patch("contiamo_release_please.release.prepend_to_changelog"), \
+         patch("contiamo_release_please.release.write_version_file"), \
+         patch("contiamo_release_please.release.bump_files") as mock_bump, \
+         patch("contiamo_release_please.release.stage_and_commit_release_changes"), \
+         patch("contiamo_release_please.release.push_release_branch"), \
+         patch("contiamo_release_please.github.get_repo_info") as mock_repo_info, \
+         patch("contiamo_release_please.github.create_or_update_pr") as mock_pr, \
+         patch("contiamo_release_please.release.checkout_branch") as mock_checkout:
+
+        mock_git_root.return_value = Path("/tmp/repo")
+        mock_config_obj = Mock()
+        mock_config_obj.get_source_branch.return_value = "main"
+        mock_config_obj.get_release_branch_name.return_value = "release-please--branches--main"
+        mock_config_obj.get_version_prefix.return_value = "v"
+        mock_config_obj.get_changelog_path.return_value = "CHANGELOG.md"
+        mock_config_obj.get_extra_files.return_value = []
+        mock_config_obj.get_changelog_sections.return_value = []
+        mock_config_obj._config = {}
+        mock_config.return_value = mock_config_obj
+
+        mock_tag.return_value = "v1.0.0"
+        mock_parse.return_value = "1.0.0"
+        mock_commits.return_value = ["feat: add feature"]
+        mock_is_release.return_value = False
+        mock_analyse.return_value = "minor"
+        mock_summary.return_value = {"feat": 1}
+        mock_parse_msg.return_value = {"type": "feat", "scope": "", "breaking": False, "description": "add feature"}
+        mock_next_version.return_value = "1.1.0"
+        mock_detect_host.return_value = "github"
+        mock_get_token.return_value = "fake_token"
+        mock_repo_info.return_value = ("owner", "repo")
+        mock_pr.return_value = {"html_url": "https://github.com/owner/repo/pull/1", "number": 1}
+        mock_bump.return_value = {"updated": [], "errors": []}
+
+        result = create_release_branch_workflow()
+
+        # Verify checkout_branch was called with source branch
+        mock_checkout.assert_called_once_with("main", Path("/tmp/repo"))
+        assert result["success"] is True
+        assert result["source_branch"] == "main"
+
+
 def test_config_get_source_branch_default():
     """Test default source branch is 'main'."""
     from contiamo_release_please.config import ReleaseConfig
