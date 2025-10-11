@@ -84,6 +84,21 @@ contiamo-release-please release --dry-run --verbose
 contiamo-release-please release  # Actually create/update the branch
 ```
 
+### Git Tag Creation (After Merging Release PR)
+
+After merging the release PR to your main branch, create and push the git tag:
+
+```bash
+contiamo-release-please tag-release --dry-run --verbose
+contiamo-release-please tag-release  # Actually create and push the tag
+```
+
+This command:
+- Reads the version from `version.txt` (created by the `release` command)
+- Validates you're not on the release branch
+- Creates an annotated git tag
+- Pushes the tag to remote origin
+
 ### Automatic Pull Request Creation
 
 Automatically create or update a pull request when creating a release branch.
@@ -219,6 +234,69 @@ Breaking changes can be indicated in two ways:
 
    BREAKING CHANGE: This changes the public API
    ```
+
+## Two-Stage Release Workflow
+
+This tool implements a two-stage release workflow similar to Google's release-please:
+
+### Stage 1: Create Release PR
+
+```bash
+contiamo-release-please release
+```
+
+This command:
+1. Analyses commits since the last release
+2. Determines the next version
+3. Creates/updates a release branch
+4. Updates changelog and version files
+5. Creates or updates a pull request
+
+### Stage 2: Create Git Tag (After Merge)
+
+After reviewing and merging the release PR:
+
+```bash
+contiamo-release-please tag-release
+```
+
+This command:
+1. Reads the version from `version.txt`
+2. Creates an annotated git tag
+3. Pushes the tag to remote
+
+### CI/CD Integration
+
+**GitHub Actions example:**
+
+```yaml
+# .github/workflows/release.yml
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  release-pr:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create Release PR
+        run: |
+          contiamo-release-please release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  tag-release:
+    runs-on: ubuntu-latest
+    if: contains(github.event.head_commit.message, 'chore(main): update files for release')
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create Git Tag
+        run: |
+          contiamo-release-please tag-release
+```
 
 ## How It Works
 

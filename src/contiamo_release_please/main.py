@@ -25,6 +25,7 @@ from contiamo_release_please.git import (
 from contiamo_release_please.release import (
     ReleaseError,
     create_release_branch_workflow,
+    tag_release_workflow,
 )
 from contiamo_release_please.version import FIRST_RELEASE, get_next_version
 
@@ -433,6 +434,63 @@ def release(config: str | None, dry_run: bool, verbose: bool, git_host: str | No
             dry_run=dry_run,
             verbose=verbose,
             git_host=git_host,
+        )
+
+    except ConfigError as e:
+        click.echo(f"Configuration error: {e}", err=True)
+        sys.exit(1)
+    except GitError as e:
+        click.echo(f"Git error: {e}", err=True)
+        sys.exit(1)
+    except ReleaseError as e:
+        click.echo(f"Release error: {e}", err=True)
+        sys.exit(1)
+    except Exception as e:
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
+
+
+@cli.command()
+@add_help_option
+@click.option(
+    "--config",
+    "-c",
+    type=click.Path(exists=True),
+    help="Path to configuration file (default: contiamo-release-please.yaml in git root)",
+)
+@click.option(
+    "--dry-run",
+    "-d",
+    is_flag=True,
+    help="Show what would be done without making any changes",
+)
+@click.option(
+    "--verbose",
+    "-v",
+    is_flag=True,
+    help="Show detailed information about tag creation",
+)
+def tag_release(config: str | None, dry_run: bool, verbose: bool):
+    """Create and push git tag for a merged release.
+
+    This command should be run after merging a release PR to the source branch.
+    It reads the version from version.txt and creates an annotated git tag.
+
+    Workflow:
+    1. Validates you're not on the release branch
+    2. Reads version from version.txt (created by 'release' command)
+    3. Creates annotated git tag
+    4. Pushes tag to remote
+
+    This is typically run after:
+    - 'contiamo-release-please release' created a release PR
+    - The release PR was reviewed and merged
+    """
+    try:
+        tag_release_workflow(
+            config_path=config,
+            dry_run=dry_run,
+            verbose=verbose,
         )
 
     except ConfigError as e:

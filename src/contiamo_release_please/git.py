@@ -145,6 +145,114 @@ def extract_version_from_tag(tag: str) -> str:
     return version
 
 
+def get_current_branch(git_root: Path) -> str:
+    """Get the name of the current git branch.
+
+    Args:
+        git_root: Git repository root path
+
+    Returns:
+        Current branch name
+
+    Raises:
+        GitError: If unable to determine current branch
+    """
+    try:
+        result = subprocess.run(
+            ["git", "branch", "--show-current"],
+            cwd=git_root,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        branch = result.stdout.strip()
+        if not branch:
+            raise GitError("Unable to determine current branch (detached HEAD?)")
+        return branch
+    except subprocess.CalledProcessError as e:
+        raise GitError(f"Failed to get current branch: {e.stderr.decode().strip()}")
+
+
+def tag_exists(tag_name: str, git_root: Path) -> bool:
+    """Check if a git tag exists locally or remotely.
+
+    Args:
+        tag_name: Name of the tag to check
+        git_root: Git repository root path
+
+    Returns:
+        True if tag exists, False otherwise
+    """
+    try:
+        # Check if tag exists locally
+        result = subprocess.run(
+            ["git", "rev-parse", "--verify", f"refs/tags/{tag_name}"],
+            cwd=git_root,
+            capture_output=True,
+            check=False,
+        )
+        if result.returncode == 0:
+            return True
+
+        # Check if tag exists remotely
+        result = subprocess.run(
+            ["git", "ls-remote", "--tags", "origin", tag_name],
+            cwd=git_root,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        return bool(result.stdout.strip())
+
+    except subprocess.SubprocessError:
+        return False
+
+
+def create_tag(tag_name: str, message: str, git_root: Path) -> None:
+    """Create an annotated git tag.
+
+    Args:
+        tag_name: Name of the tag (e.g., 'v1.2.3')
+        message: Tag annotation message
+        git_root: Git repository root path
+
+    Raises:
+        GitError: If tag creation fails
+    """
+    try:
+        subprocess.run(
+            ["git", "tag", "-a", tag_name, "-m", message],
+            cwd=git_root,
+            check=True,
+            capture_output=True,
+        )
+    except subprocess.CalledProcessError as e:
+        stderr = e.stderr.decode().strip() if e.stderr else ""
+        raise GitError(f"Failed to create tag '{tag_name}': {stderr}")
+
+
+def push_tag(tag_name: str, git_root: Path) -> None:
+    """Push a git tag to remote origin.
+
+    Args:
+        tag_name: Name of the tag to push
+        git_root: Git repository root path
+
+    Raises:
+        GitError: If tag push fails
+    """
+    try:
+        subprocess.run(
+            ["git", "push", "origin", tag_name],
+            cwd=git_root,
+            check=True,
+            capture_output=True,
+        )
+    except subprocess.CalledProcessError as e:
+        stderr = e.stderr.decode().strip() if e.stderr else ""
+        raise GitError(f"Failed to push tag '{tag_name}': {stderr}")
+
+
 def detect_git_host(git_root: Path) -> str | None:
     """Detect git hosting provider from remote URL.
 

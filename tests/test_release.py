@@ -13,6 +13,7 @@ from contiamo_release_please.release import (
     create_release_branch_workflow,
     push_release_branch,
     stage_and_commit_release_changes,
+    tag_release_workflow,
 )
 
 
@@ -313,3 +314,134 @@ def test_config_get_release_branch_name_with_custom_source():
         config = ReleaseConfig(f.name)
 
         assert config.get_release_branch_name() == "release-please--branches--develop"
+
+
+def test_tag_release_workflow_success(tmp_path):
+    """Test successful tag creation workflow."""
+    # Create version.txt
+    version_file = tmp_path / "version.txt"
+    version_file.write_text("v1.2.3\n")
+
+    with patch("contiamo_release_please.release.get_git_root") as mock_git_root, \
+         patch("contiamo_release_please.release.load_config") as mock_config, \
+         patch("contiamo_release_please.release.get_current_branch") as mock_branch, \
+         patch("contiamo_release_please.release.tag_exists") as mock_tag_exists, \
+         patch("contiamo_release_please.release.create_tag") as mock_create_tag, \
+         patch("contiamo_release_please.release.push_tag") as mock_push_tag:
+
+        mock_git_root.return_value = tmp_path
+        mock_config_obj = Mock()
+        mock_config_obj.get_release_branch_name.return_value = "release-please--branches--main"
+        mock_config.return_value = mock_config_obj
+        mock_branch.return_value = "main"
+        mock_tag_exists.return_value = False
+
+        result = tag_release_workflow()
+
+        assert result["success"] is True
+        assert result["version"] == "v1.2.3"
+        assert result["current_branch"] == "main"
+        mock_create_tag.assert_called_once_with("v1.2.3", "Release v1.2.3", tmp_path)
+        mock_push_tag.assert_called_once_with("v1.2.3", tmp_path)
+
+
+def test_tag_release_workflow_on_release_branch(tmp_path):
+    """Test that tag creation fails when on release branch."""
+    version_file = tmp_path / "version.txt"
+    version_file.write_text("v1.2.3\n")
+
+    with patch("contiamo_release_please.release.get_git_root") as mock_git_root, \
+         patch("contiamo_release_please.release.load_config") as mock_config, \
+         patch("contiamo_release_please.release.get_current_branch") as mock_branch:
+
+        mock_git_root.return_value = tmp_path
+        mock_config_obj = Mock()
+        mock_config_obj.get_release_branch_name.return_value = "release-please--branches--main"
+        mock_config.return_value = mock_config_obj
+        mock_branch.return_value = "release-please--branches--main"
+
+        with pytest.raises(ReleaseError, match="Cannot create tag from release branch"):
+            tag_release_workflow()
+
+
+def test_tag_release_workflow_no_version_file(tmp_path):
+    """Test that tag creation fails when version.txt doesn't exist."""
+    with patch("contiamo_release_please.release.get_git_root") as mock_git_root, \
+         patch("contiamo_release_please.release.load_config") as mock_config, \
+         patch("contiamo_release_please.release.get_current_branch") as mock_branch:
+
+        mock_git_root.return_value = tmp_path
+        mock_config_obj = Mock()
+        mock_config_obj.get_release_branch_name.return_value = "release-please--branches--main"
+        mock_config.return_value = mock_config_obj
+        mock_branch.return_value = "main"
+
+        with pytest.raises(ReleaseError, match="version.txt not found"):
+            tag_release_workflow()
+
+
+def test_tag_release_workflow_empty_version_file(tmp_path):
+    """Test that tag creation fails when version.txt is empty."""
+    version_file = tmp_path / "version.txt"
+    version_file.write_text("")
+
+    with patch("contiamo_release_please.release.get_git_root") as mock_git_root, \
+         patch("contiamo_release_please.release.load_config") as mock_config, \
+         patch("contiamo_release_please.release.get_current_branch") as mock_branch:
+
+        mock_git_root.return_value = tmp_path
+        mock_config_obj = Mock()
+        mock_config_obj.get_release_branch_name.return_value = "release-please--branches--main"
+        mock_config.return_value = mock_config_obj
+        mock_branch.return_value = "main"
+
+        with pytest.raises(ReleaseError, match="version.txt is empty"):
+            tag_release_workflow()
+
+
+def test_tag_release_workflow_tag_already_exists(tmp_path):
+    """Test that tag creation fails when tag already exists."""
+    version_file = tmp_path / "version.txt"
+    version_file.write_text("v1.2.3\n")
+
+    with patch("contiamo_release_please.release.get_git_root") as mock_git_root, \
+         patch("contiamo_release_please.release.load_config") as mock_config, \
+         patch("contiamo_release_please.release.get_current_branch") as mock_branch, \
+         patch("contiamo_release_please.release.tag_exists") as mock_tag_exists:
+
+        mock_git_root.return_value = tmp_path
+        mock_config_obj = Mock()
+        mock_config_obj.get_release_branch_name.return_value = "release-please--branches--main"
+        mock_config.return_value = mock_config_obj
+        mock_branch.return_value = "main"
+        mock_tag_exists.return_value = True
+
+        with pytest.raises(ReleaseError, match="Tag 'v1.2.3' already exists"):
+            tag_release_workflow()
+
+
+def test_tag_release_workflow_dry_run(tmp_path):
+    """Test dry-run mode doesn't create or push tag."""
+    version_file = tmp_path / "version.txt"
+    version_file.write_text("v1.2.3\n")
+
+    with patch("contiamo_release_please.release.get_git_root") as mock_git_root, \
+         patch("contiamo_release_please.release.load_config") as mock_config, \
+         patch("contiamo_release_please.release.get_current_branch") as mock_branch, \
+         patch("contiamo_release_please.release.tag_exists") as mock_tag_exists, \
+         patch("contiamo_release_please.release.create_tag") as mock_create_tag, \
+         patch("contiamo_release_please.release.push_tag") as mock_push_tag:
+
+        mock_git_root.return_value = tmp_path
+        mock_config_obj = Mock()
+        mock_config_obj.get_release_branch_name.return_value = "release-please--branches--main"
+        mock_config.return_value = mock_config_obj
+        mock_branch.return_value = "main"
+        mock_tag_exists.return_value = False
+
+        result = tag_release_workflow(dry_run=True)
+
+        assert result["dry_run"] is True
+        assert result["version"] == "v1.2.3"
+        mock_create_tag.assert_not_called()
+        mock_push_tag.assert_not_called()

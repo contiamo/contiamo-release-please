@@ -18,9 +18,13 @@ from contiamo_release_please.changelog import (
 )
 from contiamo_release_please.config import load_config
 from contiamo_release_please.git import (
+    create_tag,
     get_commits_since_tag,
+    get_current_branch,
     get_git_root,
     get_latest_tag,
+    push_tag,
+    tag_exists,
 )
 from contiamo_release_please.version import get_next_version, parse_version
 
@@ -527,4 +531,113 @@ def create_release_branch_workflow(
         "release_branch": release_branch,
         "source_branch": source_branch,
         "pr_url": pr_url,
+    }
+
+
+def tag_release_workflow(
+    config_path: str | None = None,
+    dry_run: bool = False,
+    verbose: bool = False,
+) -> dict[str, Any]:
+    """Create and push git tag for a merged release.
+
+    This function should be run after merging a release PR to the source branch.
+    It reads the version from version.txt and creates an annotated git tag.
+
+    Args:
+        config_path: Path to config file (optional)
+        dry_run: If True, show what would be done without doing it
+        verbose: If True, show detailed output
+
+    Returns:
+        Dictionary with workflow results
+
+    Raises:
+        ReleaseError: If workflow fails
+    """
+    # Load configuration
+    git_root = get_git_root()
+    if config_path:
+        config_file = Path(config_path)
+    else:
+        config_file = git_root / "contiamo-release-please.yaml"
+
+    config = load_config(config_file)
+
+    # Get configuration values
+    release_branch = config.get_release_branch_name()
+
+    # Validation 1: Check we're NOT on the release branch
+    current_branch = get_current_branch(git_root)
+    if current_branch == release_branch:
+        raise ReleaseError(
+            f"Cannot create tag from release branch '{release_branch}'. "
+            f"Please merge the release PR first and run from the source branch."
+        )
+
+    # Validation 2: Read version from version.txt
+    version_file = git_root / "version.txt"
+    if not version_file.exists():
+        raise ReleaseError(
+            "version.txt not found. Please run 'contiamo-release-please release' first "
+            "and merge the release PR before creating a tag."
+        )
+
+    try:
+        version = version_file.read_text().strip()
+    except Exception as e:
+        raise ReleaseError(f"Failed to read version.txt: {e}")
+
+    if not version:
+        raise ReleaseError("version.txt is empty")
+
+    # Validation 3: Check if tag already exists
+    if tag_exists(version, git_root):
+        raise ReleaseError(
+            f"Tag '{version}' already exists. "
+            f"If you need to recreate the tag, delete it first with: git tag -d {version} && git push origin :refs/tags/{version}"
+        )
+
+    # Show what will be done
+    if verbose or dry_run:
+        click.echo(f"Current branch: {current_branch}")
+        click.echo(f"Version from version.txt: {version}")
+        click.echo(f"Tag to create: {version}")
+
+    if dry_run:
+        click.echo(f"\nWould create annotated tag '{version}'")
+        click.echo("Would push tag to origin")
+        return {
+            "dry_run": True,
+            "version": version,
+            "current_branch": current_branch,
+        }
+
+    # Create annotated tag
+    if verbose:
+        click.echo(f"\nCreating tag '{version}'...")
+
+    tag_message = f"Release {version}"
+    create_tag(version, tag_message, git_root)
+
+    if verbose:
+        click.echo("✓ Tag created")
+
+    # Push tag to remote
+    if verbose:
+        click.echo("Pushing tag to origin...")
+
+    push_tag(version, git_root)
+
+    if verbose:
+        click.echo("✓ Tag pushed")
+
+    # Success message
+    click.echo(f"\n✓ Tag created and pushed: {version}")
+    click.echo(f"✓ Branch: {current_branch}")
+
+    return {
+        "success": True,
+        "version": version,
+        "current_branch": current_branch,
     }
