@@ -19,6 +19,32 @@
 
 ### Miscellaneous Changes
 
+* **main**: update files for release 0.1.0 (#3)
+* **main**: update files for release 0.1.0 (#2)
+* bump pyproject
+* Update task, changelog
+* Add taskfile and fix linting errors
+* change prefix in configfile
+
+## [0.1.0] (2025-10-11)
+
+### Features
+
+* Add create tag flow
+* Add Azure Devops support
+* Create version.txt during release flow
+* Add PR creation to release flow
+* Add release branch operations
+* Add yaml and toml file bumber
+* Add changelog generation
+* Initial project bootstrap
+
+### Bug Fixes
+
+* A bug that bumped version twice during release
+
+### Miscellaneous Changes
+
 * **main**: update files for release 0.1.0 (#2)
 * bump pyproject
 * Update task, changelog
