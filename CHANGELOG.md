@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.3.1] (2025-10-11)
+
+### Bug Fixes
+
+* Ensure all tags are pulled before determining next version
+
+### Miscellaneous Changes
+
+* Add missing github token tio git tag creation job
+
 ## [0.3.0] (2025-10-11)
 
 ### Features
