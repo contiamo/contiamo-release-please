@@ -593,6 +593,11 @@ def tag_release_workflow(
 
     config = load_config(config_file)
 
+    # Configure git identity for commits
+    git_user_name = config.get_git_user_name()
+    git_user_email = config.get_git_user_email()
+    configure_git_identity(git_user_name, git_user_email, git_root)
+
     # Get configuration values
     release_branch = config.get_release_branch_name()
 

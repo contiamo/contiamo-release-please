@@ -435,6 +435,7 @@ def test_tag_release_workflow_success(tmp_path):
 
     with patch("contiamo_release_please.release.get_git_root") as mock_git_root, \
          patch("contiamo_release_please.release.load_config") as mock_config, \
+         patch("contiamo_release_please.release.configure_git_identity"), \
          patch("contiamo_release_please.release.get_current_branch") as mock_branch, \
          patch("contiamo_release_please.release.tag_exists") as mock_tag_exists, \
          patch("contiamo_release_please.release.create_tag") as mock_create_tag, \
@@ -443,6 +444,8 @@ def test_tag_release_workflow_success(tmp_path):
         mock_git_root.return_value = tmp_path
         mock_config_obj = Mock()
         mock_config_obj.get_release_branch_name.return_value = "release-please--branches--main"
+        mock_config_obj.get_git_user_name.return_value = "Test User"
+        mock_config_obj.get_git_user_email.return_value = "test@example.com"
         mock_config.return_value = mock_config_obj
         mock_branch.return_value = "main"
         mock_tag_exists.return_value = False
@@ -463,11 +466,14 @@ def test_tag_release_workflow_on_release_branch(tmp_path):
 
     with patch("contiamo_release_please.release.get_git_root") as mock_git_root, \
          patch("contiamo_release_please.release.load_config") as mock_config, \
+         patch("contiamo_release_please.release.configure_git_identity"), \
          patch("contiamo_release_please.release.get_current_branch") as mock_branch:
 
         mock_git_root.return_value = tmp_path
         mock_config_obj = Mock()
         mock_config_obj.get_release_branch_name.return_value = "release-please--branches--main"
+        mock_config_obj.get_git_user_name.return_value = "Test User"
+        mock_config_obj.get_git_user_email.return_value = "test@example.com"
         mock_config.return_value = mock_config_obj
         mock_branch.return_value = "release-please--branches--main"
 
@@ -479,11 +485,14 @@ def test_tag_release_workflow_no_version_file(tmp_path):
     """Test that tag creation fails when version.txt doesn't exist."""
     with patch("contiamo_release_please.release.get_git_root") as mock_git_root, \
          patch("contiamo_release_please.release.load_config") as mock_config, \
+         patch("contiamo_release_please.release.configure_git_identity"), \
          patch("contiamo_release_please.release.get_current_branch") as mock_branch:
 
         mock_git_root.return_value = tmp_path
         mock_config_obj = Mock()
         mock_config_obj.get_release_branch_name.return_value = "release-please--branches--main"
+        mock_config_obj.get_git_user_name.return_value = "Test User"
+        mock_config_obj.get_git_user_email.return_value = "test@example.com"
         mock_config.return_value = mock_config_obj
         mock_branch.return_value = "main"
 
@@ -498,11 +507,14 @@ def test_tag_release_workflow_empty_version_file(tmp_path):
 
     with patch("contiamo_release_please.release.get_git_root") as mock_git_root, \
          patch("contiamo_release_please.release.load_config") as mock_config, \
+         patch("contiamo_release_please.release.configure_git_identity"), \
          patch("contiamo_release_please.release.get_current_branch") as mock_branch:
 
         mock_git_root.return_value = tmp_path
         mock_config_obj = Mock()
         mock_config_obj.get_release_branch_name.return_value = "release-please--branches--main"
+        mock_config_obj.get_git_user_name.return_value = "Test User"
+        mock_config_obj.get_git_user_email.return_value = "test@example.com"
         mock_config.return_value = mock_config_obj
         mock_branch.return_value = "main"
 
@@ -517,12 +529,15 @@ def test_tag_release_workflow_tag_already_exists(tmp_path):
 
     with patch("contiamo_release_please.release.get_git_root") as mock_git_root, \
          patch("contiamo_release_please.release.load_config") as mock_config, \
+         patch("contiamo_release_please.release.configure_git_identity"), \
          patch("contiamo_release_please.release.get_current_branch") as mock_branch, \
          patch("contiamo_release_please.release.tag_exists") as mock_tag_exists:
 
         mock_git_root.return_value = tmp_path
         mock_config_obj = Mock()
         mock_config_obj.get_release_branch_name.return_value = "release-please--branches--main"
+        mock_config_obj.get_git_user_name.return_value = "Test User"
+        mock_config_obj.get_git_user_email.return_value = "test@example.com"
         mock_config.return_value = mock_config_obj
         mock_branch.return_value = "main"
         mock_tag_exists.return_value = True
@@ -538,6 +553,7 @@ def test_tag_release_workflow_dry_run(tmp_path):
 
     with patch("contiamo_release_please.release.get_git_root") as mock_git_root, \
          patch("contiamo_release_please.release.load_config") as mock_config, \
+         patch("contiamo_release_please.release.configure_git_identity"), \
          patch("contiamo_release_please.release.get_current_branch") as mock_branch, \
          patch("contiamo_release_please.release.tag_exists") as mock_tag_exists, \
          patch("contiamo_release_please.release.create_tag") as mock_create_tag, \
@@ -546,6 +562,8 @@ def test_tag_release_workflow_dry_run(tmp_path):
         mock_git_root.return_value = tmp_path
         mock_config_obj = Mock()
         mock_config_obj.get_release_branch_name.return_value = "release-please--branches--main"
+        mock_config_obj.get_git_user_name.return_value = "Test User"
+        mock_config_obj.get_git_user_email.return_value = "test@example.com"
         mock_config.return_value = mock_config_obj
         mock_branch.return_value = "main"
         mock_tag_exists.return_value = False
