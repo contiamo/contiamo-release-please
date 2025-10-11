@@ -574,3 +574,296 @@ def test_tag_release_workflow_dry_run(tmp_path):
         assert result["version"] == "v1.2.3"
         mock_create_tag.assert_not_called()
         mock_push_tag.assert_not_called()
+
+
+def test_tag_release_workflow_creates_github_release(tmp_path):
+    """Test that GitHub release is created for GitHub repositories."""
+    version_file = tmp_path / "version.txt"
+    version_file.write_text("v1.2.3\n")
+
+    # Create a mock changelog
+    changelog_file = tmp_path / "CHANGELOG.md"
+    changelog_content = """# Changelog
+
+## [1.2.3] (2025-01-10)
+
+### Features
+
+* Add new feature
+* **auth**: OAuth support
+
+### Bug Fixes
+
+* Fix critical bug
+"""
+    changelog_file.write_text(changelog_content)
+
+    with patch("contiamo_release_please.release.get_git_root") as mock_git_root, \
+         patch("contiamo_release_please.release.load_config") as mock_config, \
+         patch("contiamo_release_please.release.configure_git_identity"), \
+         patch("contiamo_release_please.release.get_current_branch") as mock_branch, \
+         patch("contiamo_release_please.release.tag_exists") as mock_tag_exists, \
+         patch("contiamo_release_please.release.create_tag"), \
+         patch("contiamo_release_please.release.push_tag"), \
+         patch("contiamo_release_please.release.detect_git_host") as mock_detect_host, \
+         patch("contiamo_release_please.github.get_github_token") as mock_token, \
+         patch("contiamo_release_please.github.get_repo_info") as mock_repo_info, \
+         patch("contiamo_release_please.github.create_github_release") as mock_create_release:
+
+        mock_git_root.return_value = tmp_path
+        mock_config_obj = Mock()
+        mock_config_obj.get_release_branch_name.return_value = "release-please--branches--main"
+        mock_config_obj.get_git_user_name.return_value = "Test User"
+        mock_config_obj.get_git_user_email.return_value = "test@example.com"
+        mock_config_obj.get_changelog_path.return_value = "CHANGELOG.md"
+        mock_config_obj.get_version_prefix.return_value = "v"  # Default prefix
+        mock_config_obj._config = {}
+        mock_config.return_value = mock_config_obj
+        mock_branch.return_value = "main"
+        mock_tag_exists.return_value = False
+        mock_detect_host.return_value = "github"
+        mock_token.return_value = "ghp_test_token"
+        mock_repo_info.return_value = ("owner", "repo")
+        mock_create_release.return_value = {"html_url": "https://github.com/owner/repo/releases/tag/v1.2.3"}
+
+        result = tag_release_workflow()
+
+        assert result["success"] is True
+        assert result["version"] == "v1.2.3"
+        assert result["release_url"] == "https://github.com/owner/repo/releases/tag/v1.2.3"
+
+        # Verify GitHub release was created
+        mock_create_release.assert_called_once()
+        call_args = mock_create_release.call_args
+        assert call_args.kwargs["owner"] == "owner"
+        assert call_args.kwargs["repo"] == "repo"
+        assert call_args.kwargs["tag_name"] == "v1.2.3"
+        assert call_args.kwargs["release_name"] == "v1.2.3"
+        assert "Add new feature" in call_args.kwargs["body"]
+        assert "Fix critical bug" in call_args.kwargs["body"]
+
+
+def test_tag_release_workflow_non_github_skips_release(tmp_path):
+    """Test that GitHub release creation is skipped for non-GitHub repos."""
+    version_file = tmp_path / "version.txt"
+    version_file.write_text("v1.2.3\n")
+
+    with patch("contiamo_release_please.release.get_git_root") as mock_git_root, \
+         patch("contiamo_release_please.release.load_config") as mock_config, \
+         patch("contiamo_release_please.release.configure_git_identity"), \
+         patch("contiamo_release_please.release.get_current_branch") as mock_branch, \
+         patch("contiamo_release_please.release.tag_exists") as mock_tag_exists, \
+         patch("contiamo_release_please.release.create_tag"), \
+         patch("contiamo_release_please.release.push_tag"), \
+         patch("contiamo_release_please.release.detect_git_host") as mock_detect_host:
+
+        mock_git_root.return_value = tmp_path
+        mock_config_obj = Mock()
+        mock_config_obj.get_release_branch_name.return_value = "release-please--branches--main"
+        mock_config_obj.get_git_user_name.return_value = "Test User"
+        mock_config_obj.get_git_user_email.return_value = "test@example.com"
+        mock_config.return_value = mock_config_obj
+        mock_branch.return_value = "main"
+        mock_tag_exists.return_value = False
+        mock_detect_host.return_value = "azure"  # Not GitHub
+
+        result = tag_release_workflow()
+
+        assert result["success"] is True
+        assert result["version"] == "v1.2.3"
+        assert result["release_url"] is None  # No release created
+
+
+def test_tag_release_workflow_github_release_failure_doesnt_fail_workflow(tmp_path):
+    """Test that workflow continues even if GitHub release creation fails."""
+    version_file = tmp_path / "version.txt"
+    version_file.write_text("v1.2.3\n")
+
+    changelog_file = tmp_path / "CHANGELOG.md"
+    changelog_file.write_text("# Changelog\n\n## [1.2.3] (2025-01-10)\n\n* Test\n")
+
+    with patch("contiamo_release_please.release.get_git_root") as mock_git_root, \
+         patch("contiamo_release_please.release.load_config") as mock_config, \
+         patch("contiamo_release_please.release.configure_git_identity"), \
+         patch("contiamo_release_please.release.get_current_branch") as mock_branch, \
+         patch("contiamo_release_please.release.tag_exists") as mock_tag_exists, \
+         patch("contiamo_release_please.release.create_tag"), \
+         patch("contiamo_release_please.release.push_tag"), \
+         patch("contiamo_release_please.release.detect_git_host") as mock_detect_host, \
+         patch("contiamo_release_please.github.get_github_token") as mock_token:
+
+        mock_git_root.return_value = tmp_path
+        mock_config_obj = Mock()
+        mock_config_obj.get_release_branch_name.return_value = "release-please--branches--main"
+        mock_config_obj.get_git_user_name.return_value = "Test User"
+        mock_config_obj.get_git_user_email.return_value = "test@example.com"
+        mock_config_obj.get_changelog_path.return_value = "CHANGELOG.md"
+        mock_config_obj.config = {}
+        mock_config.return_value = mock_config_obj
+        mock_branch.return_value = "main"
+        mock_tag_exists.return_value = False
+        mock_detect_host.return_value = "github"
+        mock_token.side_effect = Exception("GitHub API error")
+
+        # Should not raise exception
+        result = tag_release_workflow()
+
+        assert result["success"] is True
+        assert result["version"] == "v1.2.3"
+        assert result["release_url"] is None  # Release creation failed
+
+
+def test_tag_release_workflow_github_release_dry_run(tmp_path):
+    """Test that dry-run mode shows GitHub release creation without creating it."""
+    version_file = tmp_path / "version.txt"
+    version_file.write_text("v1.2.3\n")
+
+    changelog_file = tmp_path / "CHANGELOG.md"
+    changelog_file.write_text("# Changelog\n\n## [1.2.3] (2025-01-10)\n\n* Test\n")
+
+    with patch("contiamo_release_please.release.get_git_root") as mock_git_root, \
+         patch("contiamo_release_please.release.load_config") as mock_config, \
+         patch("contiamo_release_please.release.configure_git_identity"), \
+         patch("contiamo_release_please.release.get_current_branch") as mock_branch, \
+         patch("contiamo_release_please.release.tag_exists") as mock_tag_exists, \
+         patch("contiamo_release_please.release.create_tag") as mock_create_tag, \
+         patch("contiamo_release_please.release.push_tag") as mock_push_tag, \
+         patch("contiamo_release_please.release.detect_git_host") as mock_detect_host:
+
+        mock_git_root.return_value = tmp_path
+        mock_config_obj = Mock()
+        mock_config_obj.get_release_branch_name.return_value = "release-please--branches--main"
+        mock_config_obj.get_git_user_name.return_value = "Test User"
+        mock_config_obj.get_git_user_email.return_value = "test@example.com"
+        mock_config_obj.get_changelog_path.return_value = "CHANGELOG.md"
+        mock_config.return_value = mock_config_obj
+        mock_branch.return_value = "main"
+        mock_tag_exists.return_value = False
+        mock_detect_host.return_value = "github"
+
+        result = tag_release_workflow(dry_run=True, verbose=True)
+
+        assert result["dry_run"] is True
+        assert result["version"] == "v1.2.3"
+        mock_create_tag.assert_not_called()
+        mock_push_tag.assert_not_called()
+
+
+def test_tag_release_workflow_github_release_custom_prefix(tmp_path):
+    """Test GitHub release creation with custom prefix."""
+    version_file = tmp_path / "version.txt"
+    version_file.write_text("release-2.5.0\n")
+
+    # Create a mock changelog with version WITHOUT prefix
+    changelog_file = tmp_path / "CHANGELOG.md"
+    changelog_content = """# Changelog
+
+## [2.5.0] (2025-01-15)
+
+### Features
+
+* Custom prefix support
+"""
+    changelog_file.write_text(changelog_content)
+
+    with patch("contiamo_release_please.release.get_git_root") as mock_git_root, \
+         patch("contiamo_release_please.release.load_config") as mock_config, \
+         patch("contiamo_release_please.release.configure_git_identity"), \
+         patch("contiamo_release_please.release.get_current_branch") as mock_branch, \
+         patch("contiamo_release_please.release.tag_exists") as mock_tag_exists, \
+         patch("contiamo_release_please.release.create_tag"), \
+         patch("contiamo_release_please.release.push_tag"), \
+         patch("contiamo_release_please.release.detect_git_host") as mock_detect_host, \
+         patch("contiamo_release_please.github.get_github_token") as mock_token, \
+         patch("contiamo_release_please.github.get_repo_info") as mock_repo_info, \
+         patch("contiamo_release_please.github.create_github_release") as mock_create_release:
+
+        mock_git_root.return_value = tmp_path
+        mock_config_obj = Mock()
+        mock_config_obj.get_release_branch_name.return_value = "release-please--branches--main"
+        mock_config_obj.get_git_user_name.return_value = "Test User"
+        mock_config_obj.get_git_user_email.return_value = "test@example.com"
+        mock_config_obj.get_changelog_path.return_value = "CHANGELOG.md"
+        mock_config_obj.get_version_prefix.return_value = "release-"  # Custom prefix
+        mock_config_obj._config = {}
+        mock_config.return_value = mock_config_obj
+        mock_branch.return_value = "main"
+        mock_tag_exists.return_value = False
+        mock_detect_host.return_value = "github"
+        mock_token.return_value = "ghp_test_token"
+        mock_repo_info.return_value = ("owner", "repo")
+        mock_create_release.return_value = {"html_url": "https://github.com/owner/repo/releases/tag/release-2.5.0"}
+
+        result = tag_release_workflow()
+
+        assert result["success"] is True
+        assert result["version"] == "release-2.5.0"
+        assert result["release_url"] == "https://github.com/owner/repo/releases/tag/release-2.5.0"
+
+        # Verify GitHub release was created with correct body
+        mock_create_release.assert_called_once()
+        call_args = mock_create_release.call_args
+        assert call_args.kwargs["tag_name"] == "release-2.5.0"
+        assert call_args.kwargs["release_name"] == "release-2.5.0"
+        # Verify the changelog was correctly extracted (version without prefix)
+        assert "Custom prefix support" in call_args.kwargs["body"]
+
+
+def test_tag_release_workflow_github_release_empty_prefix(tmp_path):
+    """Test GitHub release creation with empty prefix."""
+    version_file = tmp_path / "version.txt"
+    version_file.write_text("3.0.0\n")  # No prefix
+
+    # Create a mock changelog
+    changelog_file = tmp_path / "CHANGELOG.md"
+    changelog_content = """# Changelog
+
+## [3.0.0] (2025-01-20)
+
+### Features
+
+* No prefix version
+"""
+    changelog_file.write_text(changelog_content)
+
+    with patch("contiamo_release_please.release.get_git_root") as mock_git_root, \
+         patch("contiamo_release_please.release.load_config") as mock_config, \
+         patch("contiamo_release_please.release.configure_git_identity"), \
+         patch("contiamo_release_please.release.get_current_branch") as mock_branch, \
+         patch("contiamo_release_please.release.tag_exists") as mock_tag_exists, \
+         patch("contiamo_release_please.release.create_tag"), \
+         patch("contiamo_release_please.release.push_tag"), \
+         patch("contiamo_release_please.release.detect_git_host") as mock_detect_host, \
+         patch("contiamo_release_please.github.get_github_token") as mock_token, \
+         patch("contiamo_release_please.github.get_repo_info") as mock_repo_info, \
+         patch("contiamo_release_please.github.create_github_release") as mock_create_release:
+
+        mock_git_root.return_value = tmp_path
+        mock_config_obj = Mock()
+        mock_config_obj.get_release_branch_name.return_value = "release-please--branches--main"
+        mock_config_obj.get_git_user_name.return_value = "Test User"
+        mock_config_obj.get_git_user_email.return_value = "test@example.com"
+        mock_config_obj.get_changelog_path.return_value = "CHANGELOG.md"
+        mock_config_obj.get_version_prefix.return_value = ""  # Empty prefix
+        mock_config_obj._config = {}
+        mock_config.return_value = mock_config_obj
+        mock_branch.return_value = "main"
+        mock_tag_exists.return_value = False
+        mock_detect_host.return_value = "github"
+        mock_token.return_value = "ghp_test_token"
+        mock_repo_info.return_value = ("owner", "repo")
+        mock_create_release.return_value = {"html_url": "https://github.com/owner/repo/releases/tag/3.0.0"}
+
+        result = tag_release_workflow()
+
+        assert result["success"] is True
+        assert result["version"] == "3.0.0"
+        assert result["release_url"] == "https://github.com/owner/repo/releases/tag/3.0.0"
+
+        # Verify GitHub release was created with correct body
+        mock_create_release.assert_called_once()
+        call_args = mock_create_release.call_args
+        assert call_args.kwargs["tag_name"] == "3.0.0"
+        assert call_args.kwargs["release_name"] == "3.0.0"
+        # Verify the changelog was correctly extracted
+        assert "No prefix version" in call_args.kwargs["body"]

@@ -110,6 +110,55 @@ def format_changelog_entry(
     return "\n".join(lines)
 
 
+def extract_changelog_for_version(changelog_path: Path, version: str) -> str | None:
+    """Extract the changelog entry for a specific version.
+
+    Args:
+        changelog_path: Path to changelog file
+        version: Version number to extract (without prefix, e.g., "1.2.3")
+
+    Returns:
+        Changelog entry content (without the version header), or None if not found
+    """
+    if not changelog_path.exists():
+        return None
+
+    with open(changelog_path, "r") as f:
+        content = f.read()
+
+    lines = content.split("\n")
+
+    # Find the version header line (e.g., "## [1.2.3] (2025-01-01)")
+    version_header_pattern = f"## [{version}]"
+    start_index = None
+
+    for i, line in enumerate(lines):
+        if line.startswith(version_header_pattern):
+            start_index = i
+            break
+
+    if start_index is None:
+        return None
+
+    # Find the end of this version section (next ## header or end of file)
+    end_index = len(lines)
+    for i in range(start_index + 1, len(lines)):
+        if lines[i].startswith("## "):
+            end_index = i
+            break
+
+    # Extract the content (excluding the version header itself)
+    entry_lines = lines[start_index + 1:end_index]
+
+    # Remove leading/trailing empty lines
+    while entry_lines and entry_lines[0].strip() == "":
+        entry_lines.pop(0)
+    while entry_lines and entry_lines[-1].strip() == "":
+        entry_lines.pop()
+
+    return "\n".join(entry_lines) if entry_lines else None
+
+
 def prepend_to_changelog(
     changelog_path: Path, new_entry: str, create_if_missing: bool = True
 ) -> None:

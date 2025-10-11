@@ -254,6 +254,76 @@ def update_pull_request(
         raise GitHubError(error_msg)
 
 
+def create_github_release(
+    owner: str,
+    repo: str,
+    tag_name: str,
+    release_name: str,
+    body: str,
+    token: str,
+    dry_run: bool = False,
+    verbose: bool = False,
+) -> dict[str, Any] | None:
+    """Create a GitHub release.
+
+    Args:
+        owner: Repository owner
+        repo: Repository name
+        tag_name: Git tag name for the release
+        release_name: Name of the release
+        body: Release description (markdown)
+        token: GitHub token
+        dry_run: If True, only show what would be done
+        verbose: If True, show detailed output
+
+    Returns:
+        Release data from GitHub API, or None if dry_run
+
+    Raises:
+        GitHubError: If release creation fails
+    """
+    if dry_run:
+        return None
+
+    url = f"https://api.github.com/repos/{owner}/{repo}/releases"
+    headers = {
+        "Authorization": f"token {token}",
+        "Accept": "application/vnd.github.v3+json",
+        "Content-Type": "application/json",
+    }
+    payload = {
+        "tag_name": tag_name,
+        "name": release_name,
+        "body": body,
+        "draft": False,
+        "prerelease": False,
+    }
+
+    try:
+        if verbose:
+            print(f"Creating GitHub release for tag {tag_name}")
+
+        response = requests.post(
+            url,
+            headers=headers,
+            data=json.dumps(payload),
+            timeout=30,
+        )
+        response.raise_for_status()
+        return response.json()
+
+    except requests.exceptions.RequestException as e:
+        error_msg = f"Failed to create GitHub release: {e}"
+        if hasattr(e, "response") and e.response is not None:
+            try:
+                error_data = e.response.json()
+                if "message" in error_data:
+                    error_msg += f" - {error_data['message']}"
+            except Exception:
+                pass
+        raise GitHubError(error_msg)
+
+
 def create_or_update_pr(
     owner: str,
     repo: str,

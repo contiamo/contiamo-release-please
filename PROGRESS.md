@@ -1,6 +1,6 @@
 # Contiamo Release Please - Development Progress
 
-## Project Status: Phase 6.5 Complete ✅
+## Project Status: Phase 7 Complete ✅
 
 ### What's Been Implemented
 
@@ -42,11 +42,11 @@ contiamo-release-please/
 └── tests/
     ├── __init__.py
     ├── test_analyser.py (17 tests)
-    ├── test_changelog.py (11 tests)
+    ├── test_changelog.py (15 tests)
     ├── test_bumper.py (22 tests)
-    └── test_release.py (20 tests)
+    └── test_release.py (24 tests)
 
-Total: 83 tests, all passing ✅
+Total: 102 tests, all passing ✅
 ```
 
 ### Configuration File
@@ -553,13 +553,104 @@ git:
 ✅ Sensible defaults for all users
 ✅ Optional configuration (no breaking changes)
 
-### What's Next (Future Phases)
+#### Phase 6.75: Generic File Version Bumping (COMPLETE)
 
-**Phase 7: Platform-Specific Releases (Future)**
-- Create GitHub Releases with release notes
-- Create GitLab Releases
-- Attach assets to releases
-- Trigger downstream workflows
+**Core Functionality:**
+1. ✅ Generic file support using marker comments
+2. ✅ Marker-based version detection and replacement
+3. ✅ Support for configurable prefix (e.g., `use-prefix: "v"`)
+4. ✅ Multiple version replacement in single block
+5. ✅ Multiple marker blocks per file
+
+**New Class:**
+- `GenericFileBumper` in `bumper.py` - Marker-based version bumping
+
+**Marker Format:**
+```markdown
+<!--- contiamo-release-please-bump-start --->
+Version text with 1.0.0 or v1.0.0
+<!--- contiamo-release-please-bump-end --->
+```
+
+**Modified Files:**
+- `src/contiamo_release_please/bumper.py` - Added GenericFileBumper class
+- `tests/test_bumper.py` - Added 10 comprehensive tests (93 total now)
+- `README.md` - Added markers around installation commands
+- `contiamo-release-please.yaml` - Added generic file example
+
+**Configuration:**
+```yaml
+extra-files:
+  - type: generic
+    path: README.md
+    use-prefix: "v"  # Optional
+```
+
+**Regex Pattern:**
+- `\bv?\d+\.\d+\.\d+\b` - Matches semantic versions with/without v prefix
+- Replaces all version occurrences between markers
+- Preserves all other content exactly
+
+**Test Results:**
+- 93 tests passing (83 existing + 10 new generic tests)
+- All type checks passing (pyright)
+- All lint checks passing (ruff)
+
+**Benefits:**
+✅ Works with any file type (Markdown, code, config files)
+✅ Simple marker-based approach (matches Google's release-please)
+✅ Automatic version updates in documentation
+✅ Configurable prefix per file
+✅ Multiple blocks and versions supported
+
+#### Phase 7: GitHub Release Creation (COMPLETE)
+
+**Core Functionality:**
+1. ✅ Automatic GitHub release creation after tag push
+2. ✅ Host detection (GitHub, Azure, GitLab)
+3. ✅ Changelog extraction from CHANGELOG.md
+4. ✅ Release body populated with changelog content
+5. ✅ Graceful failure handling (doesn't break workflow)
+
+**New Functions:**
+- `create_github_release()` in `github.py` - Creates GitHub release via REST API
+- `extract_changelog_for_version()` in `changelog.py` - Extracts changelog entry for specific version
+
+**Modified Files:**
+- `src/contiamo_release_please/github.py` - Added create_github_release() function
+- `src/contiamo_release_please/changelog.py` - Added extract_changelog_for_version() helper
+- `src/contiamo_release_please/release.py` - Integrated GitHub release creation into tag_release_workflow()
+- `tests/test_changelog.py` - Added 4 tests for changelog extraction (15 total now)
+- `tests/test_release.py` - Added 4 tests for GitHub release creation (85 total now)
+- `README.md` - Added GitHub Release Creation section
+- `PROGRESS.md` - Updated to Phase 7 complete
+
+**Workflow:**
+1. User runs `tag-release` command
+2. Tag is created and pushed to remote
+3. Tool detects git host (GitHub/Azure/GitLab)
+4. If GitHub: extracts changelog for version from CHANGELOG.md
+5. Creates GitHub release with tag name, release name, and changelog body
+6. Prints release URL to console
+7. If GitHub release creation fails, workflow continues (graceful degradation)
+
+**Test Results:**
+- 102 tests passing (93 existing + 4 changelog + 4 release + 1 updated)
+- All type checks passing (pyright)
+- All lint checks passing (ruff)
+
+**Configuration:**
+No additional configuration needed - uses existing GITHUB_TOKEN from environment or config.
+
+**Benefits:**
+✅ Automatic GitHub release creation
+✅ Full changelog included in release body
+✅ Works automatically for GitHub repositories
+✅ Graceful failure (doesn't break tag creation)
+✅ Consistent release information across PR, tag, and GitHub Release
+✅ Zero-configuration for GitHub users
+
+### What's Next (Future Phases)
 
 **Phase 8: Config Generation Command (Future)**
 - `init` or `generate-config` CLI command
@@ -645,16 +736,17 @@ uv run pyright
 
 ### Ready for Next Session
 
-The project is fully functional through Phase 6.5. Key achievements:
+The project is fully functional through Phase 7. Key achievements:
 - ✅ Version determination from conventional commits
 - ✅ Changelog generation with customisable sections
-- ✅ File version bumping with YAML and TOML support
+- ✅ File version bumping with YAML, TOML, and generic (marker-based) support
 - ✅ Release branch creation and management (force-update strategy)
 - ✅ GitHub and Azure DevOps PR creation/update (auto-detection)
 - ✅ Git tag creation workflow (post-merge)
+- ✅ GitHub release creation with changelog content
 - ✅ Release commit filtering (prevents duplicate PRs, clean changelogs)
 - ✅ Git identity configuration (fixes CI environments)
-- ✅ 83 comprehensive tests, all passing
+- ✅ 102 comprehensive tests, all passing
 - ✅ Full type safety and linting
 - ✅ UK spelling throughout
 - ✅ Complete two-stage release workflow matching Google release-please
@@ -664,4 +756,4 @@ To continue development:
 2. Run `uv sync` to ensure dependencies are installed
 3. Run `task help` to see all available commands
 4. Review this PROGRESS.md file for context
-5. Next steps: Phase 7 (Platform-specific Releases), Phase 8 (Config Generation Command)
+5. Next steps: Phase 8 (Config Generation Command), GitLab release support

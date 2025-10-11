@@ -137,6 +137,23 @@ export AZURE_DEVOPS_TOKEN="xxx"
 contiamo-release-please release --git-host azure -v
 ```
 
+### GitHub Release Creation
+
+When using GitHub, releases are automatically created when you run `tag-release`:
+
+```bash
+# After merging the release PR, create tag and GitHub release
+export GITHUB_TOKEN="ghp_xxx"
+contiamo-release-please tag-release -v
+```
+
+The GitHub release will include:
+- Tag name and release name (e.g., `v1.2.3`)
+- Full changelog entry from `CHANGELOG.md` as the release body
+- Link to the release page
+
+This works automatically for GitHub repositories (detected from remote URL).
+
 ## Configuration
 
 Create `contiamo-release-please.yaml` in your repository root:

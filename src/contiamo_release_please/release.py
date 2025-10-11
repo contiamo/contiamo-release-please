@@ -14,6 +14,7 @@ from contiamo_release_please.analyser import (
 )
 from contiamo_release_please.bumper import bump_files
 from contiamo_release_please.changelog import (
+    extract_changelog_for_version,
     format_changelog_entry,
     prepend_to_changelog,
 )
@@ -22,6 +23,7 @@ from contiamo_release_please.git import (
     checkout_branch,
     configure_git_identity,
     create_tag,
+    detect_git_host,
     get_commits_since_tag,
     get_current_branch,
     get_git_root,
@@ -373,7 +375,9 @@ def create_release_branch_workflow(
                 click.echo(f"  {commit_type}: {count}")
 
     if dry_run:
-        click.echo(f"\nWould force-reset branch '{release_branch}' from '{source_branch}'")
+        click.echo(
+            f"\nWould force-reset branch '{release_branch}' from '{source_branch}'"
+        )
         click.echo(f"Would update {len(extra_files)} extra files")
         click.echo(f"Would update {changelog_path}")
         click.echo("Would update version.txt")
@@ -666,12 +670,80 @@ def tag_release_workflow(
     if verbose:
         click.echo("✓ Tag pushed")
 
+    # Try to create GitHub release if this is a GitHub repository
+    git_host = detect_git_host(git_root)
+    release_url = None
+
+    if git_host == "github":
+        try:
+            from contiamo_release_please.github import (
+                create_github_release,
+                get_github_token,
+                get_repo_info,
+            )
+
+            # Get GitHub credentials
+            token = get_github_token(config._config)
+            owner, repo = get_repo_info(git_root)
+
+            # Extract version without prefix for changelog lookup
+            # The changelog always uses versions without prefix (e.g., "## [1.2.3]")
+            # but version.txt contains the prefixed version (e.g., "v1.2.3" or "release-1.2.3")
+            version_prefix = config.get_version_prefix()
+            if version_prefix and version.startswith(version_prefix):
+                version_without_prefix = version[len(version_prefix) :]
+            else:
+                version_without_prefix = version
+
+            # Get changelog content for this version
+            changelog_path = config.get_changelog_path()
+            changelog_file = git_root / changelog_path
+            changelog_body = extract_changelog_for_version(
+                changelog_file, version_without_prefix
+            )
+
+            # If no changelog found, use a simple message
+            if not changelog_body:
+                changelog_body = f"Release {version}"
+
+            if verbose:
+                click.echo(f"\nCreating GitHub release for {version}...")
+
+            # Create GitHub release
+            if not dry_run:
+                release_data = create_github_release(
+                    owner=owner,
+                    repo=repo,
+                    tag_name=version,
+                    release_name=version,
+                    body=changelog_body,
+                    token=token,
+                    dry_run=dry_run,
+                    verbose=verbose,
+                )
+
+                if release_data:
+                    release_url = release_data.get("html_url")
+                    if verbose:
+                        click.echo(f"✓ GitHub release created: {release_url}")
+            else:
+                if verbose:
+                    click.echo(f"Would create GitHub release for tag {version}")
+
+        except Exception as e:
+            # Don't fail the entire workflow if GitHub release creation fails
+            if verbose:
+                click.echo(f"Warning: Failed to create GitHub release: {e}")
+
     # Success message
     click.echo(f"\n✓ Tag created and pushed: {version}")
     click.echo(f"✓ Branch: {current_branch}")
+    if release_url:
+        click.echo(f"✓ GitHub release: {release_url}")
 
     return {
         "success": True,
         "version": version,
         "current_branch": current_branch,
+        "release_url": release_url,
     }

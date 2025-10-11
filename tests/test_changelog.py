@@ -8,6 +8,7 @@ import pytest
 
 from contiamo_release_please.analyser import ParsedCommit
 from contiamo_release_please.changelog import (
+    extract_changelog_for_version,
     format_changelog_entry,
     group_commits_by_section,
     prepend_to_changelog,
@@ -355,3 +356,87 @@ def test_config_get_changelog_sections_default(temp_config_file):
     assert len(sections) == 6
     assert sections[0] == {"type": "feat", "section": "Features"}
     assert sections[1] == {"type": "fix", "section": "Bug Fixes"}
+
+
+def test_extract_changelog_for_version():
+    """Test extracting changelog entry for a specific version."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        changelog_path = Path(tmpdir) / "CHANGELOG.md"
+        content = """# Changelog
+
+All notable changes to this project will be documented in this file.
+
+## [1.2.3] (2025-01-10)
+
+### Features
+
+* **auth**: Add OAuth support
+* Add new dashboard
+
+### Bug Fixes
+
+* Fix login issue
+
+## [1.2.2] (2025-01-05)
+
+### Features
+
+* Add profile page
+"""
+        changelog_path.write_text(content)
+
+        # Extract version 1.2.3
+        result = extract_changelog_for_version(changelog_path, "1.2.3")
+        assert result is not None
+        assert "### Features" in result
+        assert "**auth**: Add OAuth support" in result
+        assert "### Bug Fixes" in result
+        assert "Fix login issue" in result
+        # Should not include the next version
+        assert "1.2.2" not in result
+        assert "Add profile page" not in result
+
+
+def test_extract_changelog_for_version_first_entry():
+    """Test extracting the first (most recent) changelog entry."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        changelog_path = Path(tmpdir) / "CHANGELOG.md"
+        content = """# Changelog
+
+## [2.0.0] (2025-01-15)
+
+### Features
+
+* Major refactor
+"""
+        changelog_path.write_text(content)
+
+        result = extract_changelog_for_version(changelog_path, "2.0.0")
+        assert result is not None
+        assert "### Features" in result
+        assert "Major refactor" in result
+
+
+def test_extract_changelog_for_version_not_found():
+    """Test that None is returned when version doesn't exist."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        changelog_path = Path(tmpdir) / "CHANGELOG.md"
+        content = """# Changelog
+
+## [1.0.0] (2025-01-01)
+
+### Features
+
+* Initial release
+"""
+        changelog_path.write_text(content)
+
+        result = extract_changelog_for_version(changelog_path, "9.9.9")
+        assert result is None
+
+
+def test_extract_changelog_for_version_file_not_found():
+    """Test that None is returned when file doesn't exist."""
+    changelog_path = Path("/nonexistent/CHANGELOG.md")
+    result = extract_changelog_for_version(changelog_path, "1.0.0")
+    assert result is None
