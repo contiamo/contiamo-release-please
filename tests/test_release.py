@@ -1,6 +1,7 @@
 """Tests for release branch creation and management."""
 
 import tempfile
+from contextlib import ExitStack
 from pathlib import Path
 from unittest.mock import Mock, patch
 
@@ -183,6 +184,7 @@ def test_create_release_branch_workflow_dry_run():
     """Test dry-run mode of full workflow."""
     with patch("contiamo_release_please.release.get_git_root") as mock_git_root, \
          patch("contiamo_release_please.release.load_config") as mock_config, \
+         patch("contiamo_release_please.release.configure_git_identity"), \
          patch("contiamo_release_please.release.get_latest_tag") as mock_tag, \
          patch("contiamo_release_please.release.get_commits_since_tag") as mock_commits, \
          patch("contiamo_release_please.release.analyse_commits") as mock_analyse, \
@@ -199,6 +201,8 @@ def test_create_release_branch_workflow_dry_run():
         mock_config_obj.get_changelog_path.return_value = "CHANGELOG.md"
         mock_config_obj.get_changelog_sections.return_value = []
         mock_config_obj.get_extra_files.return_value = []
+        mock_config_obj.get_git_user_name.return_value = "Test User"
+        mock_config_obj.get_git_user_email.return_value = "test@example.com"
         mock_config_obj._config = {}
         mock_config.return_value = mock_config_obj
 
@@ -223,11 +227,15 @@ def test_create_release_branch_workflow_no_commits():
     """Test workflow fails when no commits found."""
     with patch("contiamo_release_please.release.get_git_root") as mock_git_root, \
          patch("contiamo_release_please.release.load_config") as mock_config, \
+         patch("contiamo_release_please.release.configure_git_identity"), \
          patch("contiamo_release_please.release.get_latest_tag") as mock_tag, \
          patch("contiamo_release_please.release.get_commits_since_tag") as mock_commits:
 
         mock_git_root.return_value = Path("/tmp/repo")
-        mock_config.return_value = Mock()
+        mock_config_obj = Mock()
+        mock_config_obj.get_git_user_name.return_value = "Test User"
+        mock_config_obj.get_git_user_email.return_value = "test@example.com"
+        mock_config.return_value = mock_config_obj
         mock_tag.return_value = "v1.0.0"
         mock_commits.return_value = []
 
@@ -239,6 +247,7 @@ def test_create_release_branch_workflow_no_releasable_commits():
     """Test workflow fails when no releasable commits found."""
     with patch("contiamo_release_please.release.get_git_root") as mock_git_root, \
          patch("contiamo_release_please.release.load_config") as mock_config, \
+         patch("contiamo_release_please.release.configure_git_identity"), \
          patch("contiamo_release_please.release.get_latest_tag") as mock_tag, \
          patch("contiamo_release_please.release.get_commits_since_tag") as mock_commits, \
          patch("contiamo_release_please.release.is_release_commit") as mock_is_release, \
@@ -248,6 +257,8 @@ def test_create_release_branch_workflow_no_releasable_commits():
         mock_config_obj = Mock()
         mock_config_obj.get_source_branch.return_value = "main"
         mock_config_obj.get_release_branch_name.return_value = "release-please--branches--main"
+        mock_config_obj.get_git_user_name.return_value = "Test User"
+        mock_config_obj.get_git_user_email.return_value = "test@example.com"
         mock_config.return_value = mock_config_obj
 
         mock_tag.return_value = "v1.0.0"
@@ -263,6 +274,7 @@ def test_create_release_branch_workflow_only_release_commits():
     """Test workflow fails when only release infrastructure commits found."""
     with patch("contiamo_release_please.release.get_git_root") as mock_git_root, \
          patch("contiamo_release_please.release.load_config") as mock_config, \
+         patch("contiamo_release_please.release.configure_git_identity"), \
          patch("contiamo_release_please.release.get_latest_tag") as mock_tag, \
          patch("contiamo_release_please.release.get_commits_since_tag") as mock_commits, \
          patch("contiamo_release_please.release.is_release_commit") as mock_is_release:
@@ -271,6 +283,8 @@ def test_create_release_branch_workflow_only_release_commits():
         mock_config_obj = Mock()
         mock_config_obj.get_source_branch.return_value = "main"
         mock_config_obj.get_release_branch_name.return_value = "release-please--branches--main"
+        mock_config_obj.get_git_user_name.return_value = "Test User"
+        mock_config_obj.get_git_user_email.return_value = "test@example.com"
         mock_config.return_value = mock_config_obj
 
         mock_tag.return_value = "v1.0.0"
@@ -286,27 +300,37 @@ def test_create_release_branch_workflow_only_release_commits():
 
 def test_create_release_branch_workflow_switches_back_to_source():
     """Test workflow switches back to source branch after completion."""
-    with patch("contiamo_release_please.release.get_git_root") as mock_git_root, \
-         patch("contiamo_release_please.release.load_config") as mock_config, \
-         patch("contiamo_release_please.release.get_latest_tag") as mock_tag, \
-         patch("contiamo_release_please.release.parse_version") as mock_parse, \
-         patch("contiamo_release_please.release.get_commits_since_tag") as mock_commits, \
-         patch("contiamo_release_please.release.is_release_commit") as mock_is_release, \
-         patch("contiamo_release_please.release.analyse_commits") as mock_analyse, \
-         patch("contiamo_release_please.release.get_commit_type_summary") as mock_summary, \
-         patch("contiamo_release_please.release.parse_commit_message") as mock_parse_msg, \
-         patch("contiamo_release_please.release.get_next_version") as mock_next_version, \
-         patch("contiamo_release_please.git.detect_git_host") as mock_detect_host, \
-         patch("contiamo_release_please.github.get_github_token") as mock_get_token, \
-         patch("contiamo_release_please.release.create_or_reset_release_branch"), \
-         patch("contiamo_release_please.release.prepend_to_changelog"), \
-         patch("contiamo_release_please.release.write_version_file"), \
-         patch("contiamo_release_please.release.bump_files") as mock_bump, \
-         patch("contiamo_release_please.release.stage_and_commit_release_changes"), \
-         patch("contiamo_release_please.release.push_release_branch"), \
-         patch("contiamo_release_please.github.get_repo_info") as mock_repo_info, \
-         patch("contiamo_release_please.github.create_or_update_pr") as mock_pr, \
-         patch("contiamo_release_please.release.checkout_branch") as mock_checkout:
+    patches = [
+        patch("contiamo_release_please.release.get_git_root"),
+        patch("contiamo_release_please.release.load_config"),
+        patch("contiamo_release_please.release.configure_git_identity"),
+        patch("contiamo_release_please.release.get_latest_tag"),
+        patch("contiamo_release_please.release.parse_version"),
+        patch("contiamo_release_please.release.get_commits_since_tag"),
+        patch("contiamo_release_please.release.is_release_commit"),
+        patch("contiamo_release_please.release.analyse_commits"),
+        patch("contiamo_release_please.release.get_commit_type_summary"),
+        patch("contiamo_release_please.release.parse_commit_message"),
+        patch("contiamo_release_please.release.get_next_version"),
+        patch("contiamo_release_please.git.detect_git_host"),
+        patch("contiamo_release_please.github.get_github_token"),
+        patch("contiamo_release_please.release.create_or_reset_release_branch"),
+        patch("contiamo_release_please.release.prepend_to_changelog"),
+        patch("contiamo_release_please.release.write_version_file"),
+        patch("contiamo_release_please.release.bump_files"),
+        patch("contiamo_release_please.release.stage_and_commit_release_changes"),
+        patch("contiamo_release_please.release.push_release_branch"),
+        patch("contiamo_release_please.github.get_repo_info"),
+        patch("contiamo_release_please.github.create_or_update_pr"),
+        patch("contiamo_release_please.release.checkout_branch"),
+    ]
+
+    with ExitStack() as stack:
+        mocks = [stack.enter_context(p) for p in patches]
+        (mock_git_root, mock_config, _, mock_tag, mock_parse, mock_commits,
+         mock_is_release, mock_analyse, mock_summary, mock_parse_msg,
+         mock_next_version, mock_detect_host, mock_get_token, _,
+         _, _, mock_bump, _, _, mock_repo_info, mock_pr, mock_checkout) = mocks
 
         mock_git_root.return_value = Path("/tmp/repo")
         mock_config_obj = Mock()
@@ -316,6 +340,8 @@ def test_create_release_branch_workflow_switches_back_to_source():
         mock_config_obj.get_changelog_path.return_value = "CHANGELOG.md"
         mock_config_obj.get_extra_files.return_value = []
         mock_config_obj.get_changelog_sections.return_value = []
+        mock_config_obj.get_git_user_name.return_value = "Test User"
+        mock_config_obj.get_git_user_email.return_value = "test@example.com"
         mock_config_obj._config = {}
         mock_config.return_value = mock_config_obj
 

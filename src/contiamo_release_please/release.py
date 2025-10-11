@@ -20,6 +20,7 @@ from contiamo_release_please.changelog import (
 from contiamo_release_please.config import load_config
 from contiamo_release_please.git import (
     checkout_branch,
+    configure_git_identity,
     create_tag,
     get_commits_since_tag,
     get_current_branch,
@@ -257,6 +258,11 @@ def create_release_branch_workflow(
         config_file = git_root / "contiamo-release-please.yaml"
 
     config = load_config(config_file)
+
+    # Configure git identity for commits
+    git_user_name = config.get_git_user_name()
+    git_user_email = config.get_git_user_email()
+    configure_git_identity(git_user_name, git_user_email, git_root)
 
     # Get configuration values
     source_branch = config.get_source_branch()

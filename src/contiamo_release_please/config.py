@@ -154,6 +154,24 @@ class ReleaseConfig:
         source_branch = self.get_source_branch()
         return f"release-please--branches--{source_branch}"
 
+    def get_git_user_name(self) -> str:
+        """Get git user name for commits.
+
+        Returns:
+            Git user name or 'Contiamo Release Bot' as default
+        """
+        git_config = self._config.get("git", {})
+        return git_config.get("user-name", "Contiamo Release Bot")
+
+    def get_git_user_email(self) -> str:
+        """Get git user email for commits.
+
+        Returns:
+            Git user email or 'contiamo-release@ctmo.io' as default
+        """
+        git_config = self._config.get("git", {})
+        return git_config.get("user-email", "contiamo-release@ctmo.io")
+
 
 def load_config(
     config_path: str | Path = "contiamo-release-please.yaml",

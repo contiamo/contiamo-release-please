@@ -275,6 +275,35 @@ def checkout_branch(branch_name: str, git_root: Path) -> None:
         raise GitError(f"Failed to checkout branch '{branch_name}': {stderr}")
 
 
+def configure_git_identity(user_name: str, user_email: str, git_root: Path) -> None:
+    """Configure git user identity for commits.
+
+    Args:
+        user_name: Git user name
+        user_email: Git user email
+        git_root: Git repository root path
+
+    Raises:
+        GitError: If git configuration fails
+    """
+    try:
+        subprocess.run(
+            ["git", "config", "user.name", user_name],
+            cwd=git_root,
+            check=True,
+            capture_output=True,
+        )
+        subprocess.run(
+            ["git", "config", "user.email", user_email],
+            cwd=git_root,
+            check=True,
+            capture_output=True,
+        )
+    except subprocess.CalledProcessError as e:
+        stderr = e.stderr.decode().strip() if e.stderr else ""
+        raise GitError(f"Failed to configure git identity: {stderr}")
+
+
 def detect_git_host(git_root: Path) -> str | None:
     """Detect git hosting provider from remote URL.
 
