@@ -32,6 +32,12 @@ release-rules:
 # source-branch: "main"  # Branch to create releases from (default: main)
 # release-branch-name: "release-please--branches--main"  # Custom release branch name
 
+# Optional: GitHub PR creation
+# github:
+#   token: "ghp_xxx"  # Or set GITHUB_TOKEN environment variable (recommended)
+#   # Token needs 'repo' scope for private repos, 'public_repo' for public repos
+#   # See docs/AUTHENTICATION.md for details
+
 # Optional: Changelog sections (default shown below)
 # changelog-sections:
 #   - type: feat

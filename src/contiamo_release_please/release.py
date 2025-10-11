@@ -113,6 +113,23 @@ def create_or_reset_release_branch(
         )
 
 
+def write_version_file(git_root: Path, version: str) -> None:
+    """Write version to version.txt file in repository root.
+
+    Args:
+        git_root: Git repository root path
+        version: Version string (with prefix if configured, e.g., 'v0.1.0' or '0.1.0')
+
+    Raises:
+        ReleaseError: If writing fails
+    """
+    version_file = git_root / "version.txt"
+    try:
+        version_file.write_text(f"{version}\n")
+    except Exception as e:
+        raise ReleaseError(f"Failed to write version.txt: {e}")
+
+
 def stage_and_commit_release_changes(
     version: str,
     source_branch: str,
@@ -325,6 +342,7 @@ def create_release_branch_workflow(
         click.echo(f"\nWould force-reset branch '{release_branch}' from '{source_branch}'")
         click.echo(f"Would update {len(extra_files)} extra files")
         click.echo(f"Would update {changelog_path}")
+        click.echo("Would update version.txt")
         click.echo(
             f"Would commit: chore({source_branch}): update files for release {next_version}"
         )
@@ -360,6 +378,12 @@ def create_release_branch_workflow(
 
     if verbose:
         click.echo(f"Updated {changelog_path}")
+
+    # Write version.txt
+    write_version_file(git_root, next_version_prefixed)
+
+    if verbose:
+        click.echo("Updated version.txt")
 
     # Bump version in extra files
     if extra_files:
