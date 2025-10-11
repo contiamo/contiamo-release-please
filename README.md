@@ -55,7 +55,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 0  # Required: Fetch all history for commit analysis
 
       - name: Install uv
         uses: astral-sh/setup-uv@v5
@@ -76,7 +76,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 0  # Required: Fetch all history for tags
 
       - name: Install uv
         uses: astral-sh/setup-uv@v5
@@ -211,11 +211,23 @@ feat: new feature
 BREAKING CHANGE: This changes the API
 ```
 
+## Important Notes
+
+### Automatic Tag Fetching
+
+The tool automatically fetches tags from the remote repository before determining the next version. This ensures:
+- ✅ Correct version calculation even with shallow clones in CI
+- ✅ Up-to-date results in local development without manual `git fetch --tags`
+- ✅ Reliable behaviour in all environments
+
+**Note:** For CI workflows using `actions/checkout`, we still recommend `fetch-depth: 0` to fetch full commit history for accurate commit analysis.
+
 ## Requirements
 
 - Python 3.12+
 - Git
 - Configured `contiamo-release-please.yaml`
+- Network access to remote repository (for tag fetching)
 
 ## Licence
 

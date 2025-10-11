@@ -75,6 +75,10 @@ def _run_git_command(args: list[str], cwd: Path | str | None = None) -> str:
 def get_latest_tag(cwd: Path | None = None) -> str | None:
     """Get the latest git tag reachable from the current branch.
 
+    Automatically fetches tags from remote to ensure up-to-date results.
+    This is important for CI environments with shallow clones and local
+    development where tags may not have been pulled recently.
+
     Args:
         cwd: Repository directory (default: git root)
 
@@ -84,6 +88,27 @@ def get_latest_tag(cwd: Path | None = None) -> str | None:
     Raises:
         GitError: If git operations fail
     """
+    # Default to git repository root
+    if cwd is None:
+        cwd = get_git_root()
+
+    # Fetch tags from remote to ensure we have the latest
+    # Use --tags to fetch only tags (faster than full fetch)
+    try:
+        subprocess.run(
+            ["git", "fetch", "--tags", "origin"],
+            cwd=str(cwd),
+            check=True,
+            capture_output=True,
+        )
+    except subprocess.CalledProcessError:
+        # If fetch fails (e.g., offline, no remote, auth issues),
+        # continue with local tags - better than failing completely
+        pass
+    except FileNotFoundError:
+        # Git not found - will fail below anyway
+        pass
+
     try:
         # Get the latest tag reachable from HEAD
         # --abbrev=0 shows only the tag name without commit info
