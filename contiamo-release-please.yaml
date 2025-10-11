@@ -28,6 +28,10 @@ release-rules:
 # Optional: Changelog file path (default: CHANGELOG.md)
 # changelog-path: "CHANGELOG.md"
 
+# Optional: Release branch configuration
+# source-branch: "main"  # Branch to create releases from (default: main)
+# release-branch-name: "release-please--branches--main"  # Custom release branch name
+
 # Optional: Changelog sections (default shown below)
 # changelog-sections:
 #   - type: feat

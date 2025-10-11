@@ -133,6 +133,27 @@ class ReleaseConfig:
         """
         return self._config.get("extra-files", [])
 
+    def get_source_branch(self) -> str:
+        """Get the source branch name from configuration.
+
+        Returns:
+            Source branch name or 'main' as default
+        """
+        return self._config.get("source-branch", "main")
+
+    def get_release_branch_name(self) -> str:
+        """Get the release branch name from configuration.
+
+        Returns:
+            Release branch name or generated default based on source branch
+        """
+        if "release-branch-name" in self._config:
+            return self._config["release-branch-name"]
+
+        # Generate default: release-please--branches--{source-branch}
+        source_branch = self.get_source_branch()
+        return f"release-please--branches--{source_branch}"
+
 
 def load_config(
     config_path: str | Path = "contiamo-release-please.yaml",

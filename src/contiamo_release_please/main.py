@@ -22,6 +22,10 @@ from contiamo_release_please.git import (
     get_git_root,
     get_latest_tag,
 )
+from contiamo_release_please.release import (
+    ReleaseError,
+    create_release_branch_workflow,
+)
 from contiamo_release_please.version import FIRST_RELEASE, get_next_version
 
 
@@ -382,6 +386,56 @@ def bump_files_cmd(config: str | None, dry_run: bool, verbose: bool):
         sys.exit(1)
     except FileBumperError as e:
         click.echo(f"Bumper error: {e}", err=True)
+        sys.exit(1)
+
+
+@cli.command()
+@add_help_option
+@click.option(
+    "--config",
+    "-c",
+    type=click.Path(exists=True),
+    help="Path to configuration file (default: contiamo-release-please.yaml in git root)",
+)
+@click.option(
+    "--dry-run",
+    "-d",
+    is_flag=True,
+    help="Show what would be done without making any changes",
+)
+@click.option(
+    "--verbose",
+    "-v",
+    is_flag=True,
+    help="Show detailed information about the release process",
+)
+def release(config: str | None, dry_run: bool, verbose: bool):
+    """Create or update release branch with version bumps and changelog.
+
+    This command orchestrates the full release workflow:
+    1. Determines the next version from commit history
+    2. Creates/resets a release branch from the source branch
+    3. Generates changelog entry
+    4. Bumps version in configured files
+    5. Commits and pushes changes
+
+    The release branch can then be used to create a pull request for review.
+    """
+    try:
+        create_release_branch_workflow(
+            config_path=config,
+            dry_run=dry_run,
+            verbose=verbose,
+        )
+
+    except ConfigError as e:
+        click.echo(f"Configuration error: {e}", err=True)
+        sys.exit(1)
+    except GitError as e:
+        click.echo(f"Git error: {e}", err=True)
+        sys.exit(1)
+    except ReleaseError as e:
+        click.echo(f"Release error: {e}", err=True)
         sys.exit(1)
     except Exception as e:
         click.echo(f"Error: {e}", err=True)

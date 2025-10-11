@@ -1,6 +1,6 @@
 # Contiamo Release Please - Development Progress
 
-## Project Status: Phase 3.5 Complete ✅
+## Project Status: Phase 4 Complete ✅
 
 ### What's Been Implemented
 
@@ -37,14 +37,16 @@ contiamo-release-please/
 │       ├── analyser.py        # Commit analysis (UK spelling)
 │       ├── version.py         # Semver bumping logic
 │       ├── changelog.py       # Changelog generation
-│       └── bumper.py          # File version bumping
+│       ├── bumper.py          # File version bumping
+│       └── release.py         # Release branch orchestration
 └── tests/
     ├── __init__.py
     ├── test_analyser.py (17 tests)
     ├── test_changelog.py (11 tests)
-    └── test_bumper.py (22 tests)
+    ├── test_bumper.py (22 tests)
+    └── test_release.py (20 tests)
 
-Total: 50 tests, all passing ✅
+Total: 70 tests, all passing ✅
 ```
 
 ### Configuration File
@@ -317,13 +319,86 @@ extra-files:
 - All type checks passing (pyright)
 - All lint checks passing (ruff)
 
+#### Phase 4: Release Branch Creation and Update (COMPLETE)
+
+**Core Functionality:**
+1. ✅ `release` CLI command for full orchestrated workflow
+2. ✅ Force create/reset release branch from source branch (no conflicts)
+3. ✅ Auto-detect next version using existing `calculate_next_version()` logic
+4. ✅ Generate changelog entry on release branch
+5. ✅ Bump version in configured files on release branch
+6. ✅ Commit with message: `chore({source-branch}): update files for release {version}`
+7. ✅ Force push release branch to remote
+8. ✅ Dry-run mode to preview changes
+9. ✅ Configurable source branch and release branch name
+
+**New Module:**
+- `src/contiamo_release_please/release.py` - Release orchestration and branch management
+
+**Key Functions:**
+- `branch_exists()` - Check if branch exists locally or remotely
+- `create_or_reset_release_branch()` - Force create/reset from source (avoids conflicts)
+- `stage_and_commit_release_changes()` - Commit with conventional format
+- `push_release_branch()` - Force push to remote
+- `create_release_branch_workflow()` - Orchestrate full workflow
+
+**Modified Files:**
+- `src/contiamo_release_please/config.py` - Added `get_source_branch()`, `get_release_branch_name()`
+- `src/contiamo_release_please/main.py` - Added `release` command
+- `contiamo-release-please.yaml` - Added optional config: `source-branch`, `release-branch-name`
+- `Taskfile.yaml` - Added release command to help
+
+**Configuration:**
+```yaml
+# Optional: Release branch configuration
+source-branch: "main"  # Branch to create releases from (default: main)
+release-branch-name: "release-please--branches--main"  # Custom release branch name
+```
+
+**Usage:**
+```bash
+# Create or update release branch (auto-detect version, update files, push)
+uv run contiamo-release-please release
+
+# Dry-run mode (show what would be done)
+uv run contiamo-release-please release --dry-run --verbose
+
+# Custom config
+uv run contiamo-release-please release --config /path/to/config.yaml
+```
+
+**Force Update Strategy:**
+- Release branch is always force-reset from source branch
+- No merge conflicts ever occur
+- Previous release branch state is discarded
+- Matches Google's release-please behaviour
+- Clean slate on every run
+
+**Test Results:**
+- 70 tests passing (50 existing + 20 new release tests)
+- All type checks passing (pyright)
+- All lint checks passing (ruff)
+
+**Architecture for Future:**
+- Ready to add PR creation in Phase 5
+- Abstract `PRCreator` base class can be added
+- Implementations: `GitHubPRCreator`, `GitLabPRCreator`, `AzureDevOpsPRCreator`
+- `release` command will be extended, not replaced
+
 ### What's Next (Future Phases)
 
-**Phase 4: Release Automation**
-- Create git tags
-- Create release commits
-- Push to remote
-- Create releases on git providers (GitHub, GitLab, Azure DevOps)
+**Phase 5: Pull Request Creation**
+- Auto-create PRs on GitHub, GitLab, Azure DevOps
+- PR title: `chore(main): release {version}`
+- PR body: Changelog entry
+- Update existing PR if already open
+- Configurable git provider
+
+**Phase 6: Release Finalisation**
+- Create git tags when release PR is merged
+- Create GitHub/GitLab releases
+- Attach assets to releases
+- Trigger downstream workflows
 
 ### File Locations
 
@@ -385,6 +460,7 @@ uv sync
 uv run contiamo-release-please next-version [--verbose]
 uv run contiamo-release-please generate-changelog [--dry-run] [--verbose]
 uv run contiamo-release-please bump-files [--dry-run] [--verbose]
+uv run contiamo-release-please release [--dry-run] [--verbose]
 
 # Run tests
 uv run python -m pytest -v
@@ -398,19 +474,19 @@ uv run pyright
 
 ### Ready for Next Session
 
-The project is fully functional through Phase 3.5. Key achievements:
+The project is fully functional through Phase 4. Key achievements:
 - ✅ Version determination from conventional commits
 - ✅ Changelog generation with customisable sections
-- ✅ File version bumping with YAML support
-- ✅ File version bumping with TOML support
-- ✅ 50 comprehensive tests, all passing
+- ✅ File version bumping with YAML and TOML support
+- ✅ Release branch creation and management (force-update strategy)
+- ✅ 70 comprehensive tests, all passing
 - ✅ Full type safety and linting
 - ✅ UK spelling throughout
-- ✅ Extensible architecture for future enhancements
+- ✅ Extensible architecture ready for PR creation
 
 To continue development:
 1. Navigate to the project directory
 2. Run `uv sync` to ensure dependencies are installed
 3. Run `task help` to see all available commands
 4. Review this PROGRESS.md file for context
-5. Next steps: Phase 4 (Release automation)
+5. Next steps: Phase 5 (PR creation for GitHub/GitLab/Azure DevOps)
