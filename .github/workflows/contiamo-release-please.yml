@@ -15,7 +15,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Fetch all history for tags
+          fetch-depth: 0 # Fetch all history for tags
 
       - name: Install uv
         uses: astral-sh/setup-uv@v5
@@ -40,7 +40,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Fetch all history for tags
+          fetch-depth: 0 # Fetch all history for tags
 
       - name: Install uv
         uses: astral-sh/setup-uv@v5
@@ -53,3 +53,5 @@ jobs:
 
       - name: Create and push tag
         run: uv run contiamo-release-please tag-release --verbose
+        env:
+          GITHUB_TOKEN: ${{ secrets.CONTIAMO_CI_TOKEN }}
