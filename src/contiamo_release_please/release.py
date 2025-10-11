@@ -290,7 +290,7 @@ def create_release_branch_workflow(
     # Determine git host (auto-detect if not explicitly provided)
     determined_git_host = git_host
     if not determined_git_host:
-        from contiamo_release_please.github import detect_git_host
+        from contiamo_release_please.git import detect_git_host
 
         determined_git_host = detect_git_host(git_root)
 
@@ -298,8 +298,8 @@ def create_release_branch_workflow(
     if determined_git_host is None:
         raise ReleaseError(
             "Could not detect git hosting provider from remote URL. "
-            "Supported providers: github.com. "
-            "Use --git-host to specify provider explicitly: --git-host github"
+            "Supported providers: github.com, dev.azure.com. "
+            "Use --git-host to specify provider explicitly: --git-host github|azure"
         )
 
     # Validate credentials for detected git host (even in dry-run)
@@ -310,6 +310,14 @@ def create_release_branch_workflow(
             get_github_token(config._config)
         except GitHubError as e:
             raise ReleaseError(f"GitHub detected but authentication failed: {e}")
+
+    elif determined_git_host.lower() == "azure":
+        from contiamo_release_please.azure import AzureDevOpsError, get_azure_token
+
+        try:
+            get_azure_token(config._config)
+        except AzureDevOpsError as e:
+            raise ReleaseError(f"Azure DevOps detected but authentication failed: {e}")
 
     # Generate changelog entry (needed for both dry-run and actual run)
     grouped_commits = {}
@@ -458,6 +466,53 @@ def create_release_branch_workflow(
 
         except GitHubError as e:
             raise ReleaseError(f"GitHub PR creation failed: {e}")
+
+    elif determined_git_host.lower() == "azure":
+        from contiamo_release_please.azure import (
+            AzureDevOpsError,
+            create_or_update_pr,
+            get_azure_repo_info,
+            get_azure_token,
+        )
+
+        try:
+            if verbose:
+                click.echo("\nCreating/updating Azure DevOps pull request...")
+
+            # Get authentication
+            token = get_azure_token(config._config)
+
+            # Get repo info
+            org, project, repo = get_azure_repo_info(git_root)
+
+            # Generate PR title (matching release-please format)
+            pr_title = f"chore({source_branch}): release {next_version}"
+
+            # Use changelog entry as PR body
+            pr_body = changelog_entry
+
+            # Create or update PR
+            pr_data = create_or_update_pr(
+                org=org,
+                project=project,
+                repo=repo,
+                title=pr_title,
+                body=pr_body,
+                head_branch=release_branch,
+                base_branch=source_branch,
+                token=token,
+                dry_run=dry_run,
+                verbose=verbose,
+            )
+
+            if pr_data:
+                pr_url = pr_data.get("url")
+                pr_id = pr_data.get("pullRequestId")
+                click.echo(f"\n✓ Pull request created/updated: #{pr_id}")
+                click.echo(f"  {pr_url}")
+
+        except AzureDevOpsError as e:
+            raise ReleaseError(f"Azure DevOps PR creation failed: {e}")
 
     # Success message
     click.echo(f"\n✓ Release branch created/updated: {release_branch}")

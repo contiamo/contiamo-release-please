@@ -38,6 +38,13 @@ release-rules:
 #   # Token needs 'repo' scope for private repos, 'public_repo' for public repos
 #   # See docs/AUTHENTICATION.md for details
 
+# Optional: Azure DevOps PR creation
+# azure:
+#   token: "xxx"  # Or set AZURE_DEVOPS_TOKEN environment variable (recommended)
+#   # Token needs 'Code (Read & Write)' scope
+#   # Create at: https://dev.azure.com/{org}/_usersSettings/tokens
+#   # See docs/AUTHENTICATION.md for details
+
 # Optional: Changelog sections (default shown below)
 # changelog-sections:
 #   - type: feat

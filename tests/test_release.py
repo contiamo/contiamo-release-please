@@ -186,7 +186,7 @@ def test_create_release_branch_workflow_dry_run():
          patch("contiamo_release_please.release.get_commits_since_tag") as mock_commits, \
          patch("contiamo_release_please.release.analyse_commits") as mock_analyse, \
          patch("contiamo_release_please.release.parse_version") as mock_parse, \
-         patch("contiamo_release_please.github.detect_git_host") as mock_detect_host, \
+         patch("contiamo_release_please.git.detect_git_host") as mock_detect_host, \
          patch("contiamo_release_please.github.get_github_token") as mock_get_token:
 
         # Setup mocks

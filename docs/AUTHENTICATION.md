@@ -62,9 +62,70 @@ This will show what would be done without making actual API calls.
 
 ---
 
-## Azure DevOps (Coming Soon)
+## Azure DevOps
 
-Authentication for Azure DevOps will be documented when support is added.
+### Creating a Personal Access Token
+
+1. Go to Azure DevOps → User Settings (top right) → Personal Access Tokens
+2. Or visit directly: `https://dev.azure.com/{your-org}/_usersSettings/tokens`
+3. Click "+ New Token"
+4. Give your token a descriptive name (e.g., "contiamo-release-please")
+5. Select organisation and expiration
+6. Select the required scopes:
+   - **Code**: Read & Write (required for creating and updating PRs)
+7. Click "Create"
+8. **Copy the token immediately** - you won't be able to see it again
+
+### Using the Token
+
+There are two ways to provide the Azure DevOps token:
+
+#### Option 1: Environment Variable (Recommended)
+
+Set the `AZURE_DEVOPS_TOKEN` environment variable:
+
+```bash
+export AZURE_DEVOPS_TOKEN="your-pat-token-here"
+uv run contiamo-release-please release --git-host azure
+```
+
+For CI/CD pipelines, add `AZURE_DEVOPS_TOKEN` as a secret variable in your pipeline configuration.
+
+#### Option 2: Configuration File
+
+Add the token to your `contiamo-release-please.yaml`:
+
+```yaml
+azure:
+  token: "your-pat-token-here"
+```
+
+**⚠️ Warning**: Do not commit tokens to version control. Use environment variables or Azure Key Vault for CI/CD.
+
+### Required Permissions
+
+The token needs:
+- **Code (Read & Write)** scope
+- Access to the specific project and repository
+
+### Supported URL Formats
+
+The tool auto-detects Azure DevOps from these remote URL formats:
+- `https://dev.azure.com/org/project/_git/repo`
+- `https://user@dev.azure.com/org/project/_git/repo`
+- `git@ssh.dev.azure.com:v3/org/project/repo`
+- `https://org.visualstudio.com/project/_git/repo` (legacy)
+
+### Testing Authentication
+
+Test your authentication with a dry-run:
+
+```bash
+export AZURE_DEVOPS_TOKEN="your-token-here"
+uv run contiamo-release-please release --git-host azure --dry-run --verbose
+```
+
+This will show what would be done without making actual API calls.
 
 ---
 
@@ -102,6 +163,24 @@ The repository doesn't exist or your token doesn't have access to it. Check:
 Your git remote URL is not in a recognised format. The tool supports:
 - HTTPS: `https://github.com/owner/repo.git`
 - SSH: `git@github.com:owner/repo.git`
+
+Check your remote URL with:
+```bash
+git remote get-url origin
+```
+
+### "Azure DevOps token not found"
+
+Make sure you've either:
+1. Set the `AZURE_DEVOPS_TOKEN` environment variable, OR
+2. Added `azure.token` to your config file
+
+### "Could not parse Azure DevOps org/project/repo from remote URL"
+
+Your git remote URL is not in a recognised Azure DevOps format. The tool supports:
+- `https://dev.azure.com/org/project/_git/repo`
+- `git@ssh.dev.azure.com:v3/org/project/repo`
+- `https://org.visualstudio.com/project/_git/repo`
 
 Check your remote URL with:
 ```bash

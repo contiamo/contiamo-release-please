@@ -84,18 +84,31 @@ contiamo-release-please release --dry-run --verbose
 contiamo-release-please release  # Actually create/update the branch
 ```
 
-### GitHub Pull Request Creation
+### Automatic Pull Request Creation
 
-Automatically create or update a GitHub pull request when creating a release branch:
+Automatically create or update a pull request when creating a release branch.
 
+**GitHub:**
 ```bash
 export GITHUB_TOKEN="ghp_xxxxxxxxxxxx"
 contiamo-release-please release --git-host github --verbose
 ```
 
+**Azure DevOps:**
+```bash
+export AZURE_DEVOPS_TOKEN="your-pat-token"
+contiamo-release-please release --git-host azure --verbose
+```
+
+**Auto-detection:**
+```bash
+export GITHUB_TOKEN="ghp_xxxxxxxxxxxx"  # or AZURE_DEVOPS_TOKEN
+contiamo-release-please release  # Automatically detects git host from remote URL
+```
+
 This will:
 1. Create/update the release branch
-2. Automatically create or update a pull request on GitHub
+2. Automatically create or update a pull request
 3. Use the changelog as the PR body
 4. Format the PR title as `chore(main): release X.Y.Z` (matching release-please)
 

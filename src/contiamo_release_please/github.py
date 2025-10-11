@@ -14,43 +14,6 @@ class GitHubError(Exception):
     """Raised when GitHub API operations fail."""
 
 
-def detect_git_host(git_root: Path) -> str | None:
-    """Detect git hosting provider from remote URL.
-
-    Args:
-        git_root: Git repository root path
-
-    Returns:
-        Git host identifier ('github', 'azure', 'gitlab') or None if cannot detect
-    """
-    try:
-        result = subprocess.run(
-            ["git", "remote", "get-url", "origin"],
-            cwd=git_root,
-            check=True,
-            capture_output=True,
-            text=True,
-        )
-        remote_url = result.stdout.strip().lower()
-
-        # Check for GitHub
-        if "github.com" in remote_url:
-            return "github"
-
-        # Future: Azure DevOps
-        # if "dev.azure.com" in remote_url or "visualstudio.com" in remote_url:
-        #     return "azure"
-
-        # Future: GitLab
-        # if "gitlab.com" in remote_url or "gitlab" in remote_url:
-        #     return "gitlab"
-
-        return None
-
-    except subprocess.CalledProcessError:
-        return None
-
-
 def get_github_token(config: dict[str, Any]) -> str:
     """Get GitHub token from environment or config.
 

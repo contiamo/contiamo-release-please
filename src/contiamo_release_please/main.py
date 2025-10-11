@@ -412,8 +412,8 @@ def bump_files_cmd(config: str | None, dry_run: bool, verbose: bool):
 @click.option(
     "--git-host",
     "-g",
-    type=click.Choice(["github"], case_sensitive=False),
-    help="Git hosting provider for PR creation (github)",
+    type=click.Choice(["github", "azure"], case_sensitive=False),
+    help="Git hosting provider for PR creation (github, azure)",
 )
 def release(config: str | None, dry_run: bool, verbose: bool, git_host: str | None):
     """Create or update release branch with version bumps and changelog.
