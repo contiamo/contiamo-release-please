@@ -185,7 +185,9 @@ def test_create_release_branch_workflow_dry_run():
          patch("contiamo_release_please.release.get_latest_tag") as mock_tag, \
          patch("contiamo_release_please.release.get_commits_since_tag") as mock_commits, \
          patch("contiamo_release_please.release.analyse_commits") as mock_analyse, \
-         patch("contiamo_release_please.release.parse_version") as mock_parse:
+         patch("contiamo_release_please.release.parse_version") as mock_parse, \
+         patch("contiamo_release_please.github.detect_git_host") as mock_detect_host, \
+         patch("contiamo_release_please.github.get_github_token") as mock_get_token:
 
         # Setup mocks
         mock_git_root.return_value = Path("/tmp/repo")
@@ -196,12 +198,17 @@ def test_create_release_branch_workflow_dry_run():
         mock_config_obj.get_changelog_path.return_value = "CHANGELOG.md"
         mock_config_obj.get_changelog_sections.return_value = []
         mock_config_obj.get_extra_files.return_value = []
+        mock_config_obj._config = {}
         mock_config.return_value = mock_config_obj
 
         mock_tag.return_value = "v1.0.0"
         mock_parse.return_value = "1.0.0"  # Return string, not Version object
         mock_commits.return_value = ["feat: add feature"]
         mock_analyse.return_value = "minor"  # analyse_commits returns just the release type string
+
+        # Mock git host detection and credentials
+        mock_detect_host.return_value = "github"
+        mock_get_token.return_value = "fake_token"
 
         # Run dry-run
         result = create_release_branch_workflow(dry_run=True, verbose=False)

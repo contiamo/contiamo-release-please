@@ -203,6 +203,7 @@ def create_release_branch_workflow(
     config_path: str | None = None,
     dry_run: bool = False,
     verbose: bool = False,
+    git_host: str | None = None,
 ) -> dict[str, Any]:
     """Orchestrate the full release branch creation/update workflow.
 
@@ -211,11 +212,13 @@ def create_release_branch_workflow(
     2. Creates/resets the release branch from source
     3. Generates changelog and bumps version files
     4. Commits and pushes changes
+    5. Creates/updates pull request (if git_host specified)
 
     Args:
         config_path: Path to config file (optional)
         dry_run: If True, show what would be done without doing it
         verbose: If True, show detailed output
+        git_host: Git hosting provider for PR creation (e.g., 'github')
 
     Returns:
         Dictionary with workflow results
@@ -267,6 +270,44 @@ def create_release_branch_workflow(
     next_version = get_next_version(current_version_str, release_type)
     next_version_prefixed = f"{version_prefix}{next_version}"
 
+    # Determine git host (auto-detect if not explicitly provided)
+    determined_git_host = git_host
+    if not determined_git_host:
+        from contiamo_release_please.github import detect_git_host
+
+        determined_git_host = detect_git_host(git_root)
+
+    # Validate git host was determined
+    if determined_git_host is None:
+        raise ReleaseError(
+            "Could not detect git hosting provider from remote URL. "
+            "Supported providers: github.com. "
+            "Use --git-host to specify provider explicitly: --git-host github"
+        )
+
+    # Validate credentials for detected git host (even in dry-run)
+    if determined_git_host.lower() == "github":
+        from contiamo_release_please.github import GitHubError, get_github_token
+
+        try:
+            get_github_token(config._config)
+        except GitHubError as e:
+            raise ReleaseError(f"GitHub detected but authentication failed: {e}")
+
+    # Generate changelog entry (needed for both dry-run and actual run)
+    grouped_commits = {}
+    for section_config in config.get_changelog_sections():
+        commit_type_key = section_config["type"]
+        section_name = section_config["section"]
+
+        matching = [c for c in parsed_commits if c["type"] == commit_type_key]
+        if matching:
+            if section_name not in grouped_commits:
+                grouped_commits[section_name] = []
+            grouped_commits[section_name].extend(matching)
+
+    changelog_entry = format_changelog_entry(next_version, grouped_commits, config)
+
     # Show what will be done
     if verbose or dry_run:
         click.echo(f"Source branch: {source_branch}")
@@ -288,6 +329,15 @@ def create_release_branch_workflow(
             f"Would commit: chore({source_branch}): update files for release {next_version}"
         )
         click.echo(f"Would force-push to origin/{release_branch}")
+
+        # Always show PR creation (git host is now validated above)
+        pr_title = f"chore({source_branch}): release {next_version}"
+        click.echo(f"\nWould create/update {determined_git_host.upper()} PR:")
+        click.echo(f"  Title: {pr_title}")
+        click.echo(f"  Head: {release_branch}")
+        click.echo(f"  Base: {source_branch}")
+        click.echo(f"  Body:\n{changelog_entry}")
+
         return {
             "dry_run": True,
             "version": next_version,
@@ -300,22 +350,9 @@ def create_release_branch_workflow(
 
     create_or_reset_release_branch(release_branch, source_branch, git_root, dry_run)
 
-    # Generate changelog entry
+    # Changelog entry already generated above (needed for dry-run)
     if verbose:
-        click.echo("Generating changelog entry...")
-
-    grouped_commits = {}
-    for section_config in config.get_changelog_sections():
-        commit_type_key = section_config["type"]
-        section_name = section_config["section"]
-
-        matching = [c for c in parsed_commits if c["type"] == commit_type_key]
-        if matching:
-            if section_name not in grouped_commits:
-                grouped_commits[section_name] = []
-            grouped_commits[section_name].extend(matching)
-
-    changelog_entry = format_changelog_entry(next_version, grouped_commits, config)
+        click.echo("Updating changelog file...")
 
     # Update changelog file
     changelog_file = git_root / changelog_path
@@ -350,13 +387,59 @@ def create_release_branch_workflow(
 
     push_release_branch(release_branch, git_root, dry_run)
 
+    # Create or update pull request (git host is always determined at this point)
+    pr_url = None
+    if determined_git_host.lower() == "github":
+        from contiamo_release_please.github import (
+            GitHubError,
+            create_or_update_pr,
+            get_github_token,
+            get_repo_info,
+        )
+
+        try:
+            if verbose:
+                click.echo("\nCreating/updating GitHub pull request...")
+
+            # Get authentication
+            token = get_github_token(config._config)
+
+            # Get repo info
+            owner, repo = get_repo_info(git_root)
+
+            # Generate PR title (matching release-please format)
+            pr_title = f"chore({source_branch}): release {next_version}"
+
+            # Use changelog entry as PR body
+            pr_body = changelog_entry
+
+            # Create or update PR
+            pr_data = create_or_update_pr(
+                owner=owner,
+                repo=repo,
+                title=pr_title,
+                body=pr_body,
+                head_branch=release_branch,
+                base_branch=source_branch,
+                token=token,
+                dry_run=dry_run,
+                verbose=verbose,
+            )
+
+            if pr_data:
+                pr_url = pr_data.get("html_url")
+                pr_number = pr_data.get("number")
+                click.echo(f"\n✓ Pull request created/updated: #{pr_number}")
+                click.echo(f"  {pr_url}")
+
+        except GitHubError as e:
+            raise ReleaseError(f"GitHub PR creation failed: {e}")
+
     # Success message
     click.echo(f"\n✓ Release branch created/updated: {release_branch}")
     click.echo(f"✓ Version: {next_version_prefixed}")
-    click.echo("\nNext steps:")
-    click.echo(f"  1. Create a pull request from '{release_branch}' to '{source_branch}'")
-    click.echo("  2. Review the changes")
-    click.echo("  3. Merge the pull request when ready to release")
+
+    # PR is always created at this point, no need for manual steps message
 
     return {
         "success": True,
@@ -364,4 +447,5 @@ def create_release_branch_workflow(
         "version_prefixed": next_version_prefixed,
         "release_branch": release_branch,
         "source_branch": source_branch,
+        "pr_url": pr_url,
     }

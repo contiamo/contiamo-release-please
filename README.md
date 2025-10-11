@@ -75,6 +75,32 @@ Use a different configuration file:
 contiamo-release-please next-version --config my-config.yaml
 ```
 
+### Release Branch Creation
+
+Create or update a release branch with changelog and version bumps:
+
+```bash
+contiamo-release-please release --dry-run --verbose
+contiamo-release-please release  # Actually create/update the branch
+```
+
+### GitHub Pull Request Creation
+
+Automatically create or update a GitHub pull request when creating a release branch:
+
+```bash
+export GITHUB_TOKEN="ghp_xxxxxxxxxxxx"
+contiamo-release-please release --git-host github --verbose
+```
+
+This will:
+1. Create/update the release branch
+2. Automatically create or update a pull request on GitHub
+3. Use the changelog as the PR body
+4. Format the PR title as `chore(main): release X.Y.Z` (matching release-please)
+
+See [docs/AUTHENTICATION.md](docs/AUTHENTICATION.md) for details on setting up authentication.
+
 ## Configuration
 
 Create a `contiamo-release-please.yaml` file in your repository root:
@@ -99,6 +125,11 @@ release-rules:
     - style
     - test
     - ci
+
+# GitHub PR creation (optional)
+github:
+  # token: "ghp_xxx"  # Or set GITHUB_TOKEN environment variable
+  # Token needs 'repo' scope for private repos, 'public_repo' for public
 ```
 
 ### Configuration Options
@@ -110,6 +141,16 @@ Defines how commit types map to version bumps. Each section (`major`, `minor`, `
 - **major**: Commit types that trigger a major version bump (breaking changes)
 - **minor**: Commit types that trigger a minor version bump (new features)
 - **patch**: Commit types that trigger a patch version bump (bug fixes, etc.)
+
+#### `github` (optional)
+
+Configuration for GitHub pull request creation:
+
+- **token**: GitHub personal access token (alternatively set `GITHUB_TOKEN` environment variable)
+  - For private repos: Needs `repo` scope
+  - For public repos: Needs `public_repo` scope
+
+See [docs/AUTHENTICATION.md](docs/AUTHENTICATION.md) for full authentication guide.
 
 ## Conventional Commits
 

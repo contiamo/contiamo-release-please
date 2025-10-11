@@ -409,7 +409,13 @@ def bump_files_cmd(config: str | None, dry_run: bool, verbose: bool):
     is_flag=True,
     help="Show detailed information about the release process",
 )
-def release(config: str | None, dry_run: bool, verbose: bool):
+@click.option(
+    "--git-host",
+    "-g",
+    type=click.Choice(["github"], case_sensitive=False),
+    help="Git hosting provider for PR creation (github)",
+)
+def release(config: str | None, dry_run: bool, verbose: bool, git_host: str | None):
     """Create or update release branch with version bumps and changelog.
 
     This command orchestrates the full release workflow:
@@ -426,6 +432,7 @@ def release(config: str | None, dry_run: bool, verbose: bool):
             config_path=config,
             dry_run=dry_run,
             verbose=verbose,
+            git_host=git_host,
         )
 
     except ConfigError as e:
