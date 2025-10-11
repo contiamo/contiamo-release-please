@@ -1,6 +1,6 @@
 # Contiamo Release Please - Development Progress
 
-## Project Status: Phase 5 Complete ✅ + Bug Fix Applied
+## Project Status: Phase 6.5 Complete ✅
 
 ### What's Been Implemented
 
@@ -46,7 +46,7 @@ contiamo-release-please/
     ├── test_bumper.py (22 tests)
     └── test_release.py (20 tests)
 
-Total: 82 tests, all passing ✅
+Total: 83 tests, all passing ✅
 ```
 
 ### Configuration File
@@ -509,6 +509,50 @@ contiamo-release-please tag-release
 ✅ Clear error message guides users through correct workflow
 ✅ Works correctly when new commits added after merge
 
+#### Phase 6.5: Git Identity Configuration (COMPLETE)
+
+**Core Functionality:**
+1. ✅ Optional git identity configuration in config file
+2. ✅ Hardcoded defaults when git section is omitted
+3. ✅ Automatic git user.name and user.email configuration
+4. ✅ Fixes CI environment git identity issues
+5. ✅ Configurable per-project identity
+
+**New Functions:**
+- `get_git_user_name()` in `config.py` - Get git user name (default: "Contiamo Release Bot")
+- `get_git_user_email()` in `config.py` - Get git user email (default: "contiamo-release@ctmo.io")
+- `configure_git_identity()` in `git.py` - Configure git user identity
+
+**Modified Files:**
+- `src/contiamo_release_please/config.py` - Added git identity methods with defaults
+- `src/contiamo_release_please/git.py` - Added git configuration function
+- `src/contiamo_release_please/release.py` - Integrated git identity setup into workflow
+- `contiamo-release-please.yaml` - Added optional git section
+- `tests/test_release.py` - Updated all workflow tests with git identity mocks
+
+**Configuration:**
+```yaml
+# Optional: Git identity for commits (uses defaults if not specified)
+git:
+  user-name: "Contiamo Release Bot"
+  user-email: "contiamo-release@ctmo.io"
+```
+
+**Default Values:**
+- Name: "Contiamo Release Bot"
+- Email: "contiamo-release@ctmo.io"
+
+**Test Results:**
+- 83 tests passing (82 existing + 1 updated)
+- All type checks passing (pyright)
+- All lint checks passing (ruff)
+
+**Benefits:**
+✅ Works in CI environments without git config
+✅ Customisable per-project identity
+✅ Sensible defaults for all users
+✅ Optional configuration (no breaking changes)
+
 ### What's Next (Future Phases)
 
 **Phase 7: Platform-Specific Releases (Future)**
@@ -516,6 +560,14 @@ contiamo-release-please tag-release
 - Create GitLab Releases
 - Attach assets to releases
 - Trigger downstream workflows
+
+**Phase 8: Config Generation Command (Future)**
+- `init` or `generate-config` CLI command
+- Generate full `contiamo-release-please.yaml` with all options
+- Include sensible defaults for all settings
+- Comment out optional sections clearly marked as "(Optional)"
+- Interactive mode to prompt for common values
+- Makes onboarding easier for new users
 
 ### File Locations
 
@@ -593,7 +645,7 @@ uv run pyright
 
 ### Ready for Next Session
 
-The project is fully functional through Phase 6 + Bug Fix. Key achievements:
+The project is fully functional through Phase 6.5. Key achievements:
 - ✅ Version determination from conventional commits
 - ✅ Changelog generation with customisable sections
 - ✅ File version bumping with YAML and TOML support
@@ -601,7 +653,8 @@ The project is fully functional through Phase 6 + Bug Fix. Key achievements:
 - ✅ GitHub and Azure DevOps PR creation/update (auto-detection)
 - ✅ Git tag creation workflow (post-merge)
 - ✅ Release commit filtering (prevents duplicate PRs, clean changelogs)
-- ✅ 82 comprehensive tests, all passing
+- ✅ Git identity configuration (fixes CI environments)
+- ✅ 83 comprehensive tests, all passing
 - ✅ Full type safety and linting
 - ✅ UK spelling throughout
 - ✅ Complete two-stage release workflow matching Google release-please
@@ -611,4 +664,4 @@ To continue development:
 2. Run `uv sync` to ensure dependencies are installed
 3. Run `task help` to see all available commands
 4. Review this PROGRESS.md file for context
-5. Next steps: Phase 7 (Platform-specific Releases: GitHub Releases, GitLab Releases)
+5. Next steps: Phase 7 (Platform-specific Releases), Phase 8 (Config Generation Command)

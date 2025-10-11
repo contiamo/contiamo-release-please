@@ -1,376 +1,195 @@
 # Contiamo Release Please
 
-Automated semantic versioning and release management tool based on conventional commits.
+Automated semantic versioning and release management based on conventional commits.
 
-## Overview
+## TL;DR
 
-`contiamo-release-please` analyses your git commit history and automatically determines the next semantic version for your project. It uses conventional commit messages to decide whether to bump the major, minor, or patch version.
+1. Create release PR (analyses commits, updates changelog, bumps versions):
 
-## Features
+```bash
+contiamo-release-please release -v
+```
 
-- **Automatic version calculation** based on commit messages
-- **Conventional commits support** with configurable type mappings
-- **Breaking change detection** via `!` or `BREAKING CHANGE:` in commits
-- **Flexible configuration** via YAML file
-- **Git-native** - works with any git repository
+2. Review and merge the PR
+
+3. Create and push git tag:
+
+```bash
+contiamo-release-please tag-release -v
+```
 
 ## Installation
 
-### Using UV (recommended)
+Install from PyPI:
 
 ```bash
-cd contiamo-release-please
-uv sync
+pip install contiamo-release-please
 ```
 
-### Using pip
+Or using uv:
 
 ```bash
-pip install -e .
+uv pip install contiamo-release-please
 ```
 
-## Usage
-
-### Basic Usage
-
-Calculate the next version based on commits since the last tag:
-
-```bash
-contiamo-release-please next-version
-```
-
-This will output just the version number (e.g., `1.2.3`).
-
-### Verbose Mode
-
-Get detailed information about the analysis:
-
-```bash
-contiamo-release-please next-version --verbose
-```
-
-Example output:
-```
-Latest tag: v1.2.0
-Current version: 1.2.0
-
-Found 5 commits since last release
-
-Commit summary:
-  feat: 2 → minor bump
-  fix: 2 → patch bump
-  chore: 1 → patch bump
-
-Determined release type: minor
-Version bump: 1.2.0 → 1.3.0
-
-1.3.0
-```
-
-### Custom Configuration
-
-Use a different configuration file:
-
-```bash
-contiamo-release-please next-version --config my-config.yaml
-```
-
-### Release Branch Creation
-
-Create or update a release branch with changelog and version bumps:
-
-```bash
-contiamo-release-please release --dry-run --verbose
-contiamo-release-please release  # Actually create/update the branch
-```
-
-### Git Tag Creation (After Merging Release PR)
-
-After merging the release PR to your main branch, create and push the git tag:
-
-```bash
-contiamo-release-please tag-release --dry-run --verbose
-contiamo-release-please tag-release  # Actually create and push the tag
-```
-
-This command:
-- Reads the version from `version.txt` (created by the `release` command)
-- Validates you're not on the release branch
-- Creates an annotated git tag
-- Pushes the tag to remote origin
-
-### Automatic Pull Request Creation
-
-Automatically create or update a pull request when creating a release branch.
-
-**GitHub:**
-```bash
-export GITHUB_TOKEN="ghp_xxxxxxxxxxxx"
-contiamo-release-please release --git-host github --verbose
-```
-
-**Azure DevOps:**
-```bash
-export AZURE_DEVOPS_TOKEN="your-pat-token"
-contiamo-release-please release --git-host azure --verbose
-```
-
-**Auto-detection:**
-```bash
-export GITHUB_TOKEN="ghp_xxxxxxxxxxxx"  # or AZURE_DEVOPS_TOKEN
-contiamo-release-please release  # Automatically detects git host from remote URL
-```
-
-This will:
-1. Create/update the release branch
-2. Automatically create or update a pull request
-3. Use the changelog as the PR body
-4. Format the PR title as `chore(main): release X.Y.Z` (matching release-please)
-
-See [docs/AUTHENTICATION.md](docs/AUTHENTICATION.md) for details on setting up authentication.
-
-## Configuration
-
-Create a `contiamo-release-please.yaml` file in your repository root:
+## GitHub Actions Example
 
 ```yaml
-release-rules:
-  # Major version bump (breaking changes)
-  major:
-    - breaking
-
-  # Minor version bump (new features)
-  minor:
-    - feat
-
-  # Patch version bump (bug fixes and minor changes)
-  patch:
-    - fix
-    - perf
-    - chore
-    - docs
-    - refactor
-    - style
-    - test
-    - ci
-
-# GitHub PR creation (optional)
-github:
-  # token: "ghp_xxx"  # Or set GITHUB_TOKEN environment variable
-  # Token needs 'repo' scope for private repos, 'public_repo' for public
-```
-
-### Configuration Options
-
-#### `release-rules`
-
-Defines how commit types map to version bumps. Each section (`major`, `minor`, `patch`) contains a list of commit type prefixes.
-
-- **major**: Commit types that trigger a major version bump (breaking changes)
-- **minor**: Commit types that trigger a minor version bump (new features)
-- **patch**: Commit types that trigger a patch version bump (bug fixes, etc.)
-
-#### `github` (optional)
-
-Configuration for GitHub pull request creation:
-
-- **token**: GitHub personal access token (alternatively set `GITHUB_TOKEN` environment variable)
-  - For private repos: Needs `repo` scope
-  - For public repos: Needs `public_repo` scope
-
-See [docs/AUTHENTICATION.md](docs/AUTHENTICATION.md) for full authentication guide.
-
-## Conventional Commits
-
-This tool follows the [Conventional Commits](https://www.conventionalcommits.org/) specification:
-
-```
-<type>[optional scope][!]: <description>
-
-[optional body]
-
-[optional footer(s)]
-```
-
-### Examples
-
-**Patch release:**
-```
-fix: resolve issue with API response
-```
-
-**Minor release:**
-```
-feat: add new authentication method
-```
-
-**Major release (breaking change):**
-```
-feat!: redesign authentication API
-
-BREAKING CHANGE: The authentication flow has been completely redesigned.
-```
-
-Or:
-```
-feat: redesign authentication API
-
-BREAKING CHANGE: The authentication flow has been completely redesigned.
-```
-
-### Breaking Changes
-
-Breaking changes can be indicated in two ways:
-
-1. **Using `!` after the type/scope:**
-   ```
-   feat!: breaking change
-   feat(api)!: breaking API change
-   ```
-
-2. **Using `BREAKING CHANGE:` in the commit body:**
-   ```
-   feat: new feature
-
-   BREAKING CHANGE: This changes the public API
-   ```
-
-## Two-Stage Release Workflow
-
-This tool implements a two-stage release workflow similar to Google's release-please:
-
-### Stage 1: Create Release PR
-
-```bash
-contiamo-release-please release
-```
-
-This command:
-1. Analyses commits since the last release
-2. Determines the next version
-3. Creates/updates a release branch
-4. Updates changelog and version files
-5. Creates or updates a pull request
-
-### Stage 2: Create Git Tag (After Merge)
-
-After reviewing and merging the release PR:
-
-```bash
-contiamo-release-please tag-release
-```
-
-This command:
-1. Reads the version from `version.txt`
-2. Creates an annotated git tag
-3. Pushes the tag to remote
-
-### CI/CD Integration
-
-**GitHub Actions example:**
-
-```yaml
-# .github/workflows/release.yml
 name: Release
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
 
 jobs:
   release-pr:
+    name: Create Release PR
     runs-on: ubuntu-latest
+    # Run on all pushes EXCEPT release PR merges
+    if: "!startsWith(github.event.head_commit.message, 'chore(main): update files for release')"
     steps:
       - uses: actions/checkout@v4
-      - name: Create Release PR
-        run: |
-          contiamo-release-please release
+        with:
+          fetch-depth: 0
+
+      - name: Install tool
+        run: pip install contiamo-release-please
+
+      - name: Create release PR
+        run: contiamo-release-please release -v
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   tag-release:
+    name: Create Git Tag
     runs-on: ubuntu-latest
-    if: contains(github.event.head_commit.message, 'chore(main): update files for release')
+    # Run ONLY on release PR merges
+    if: "startsWith(github.event.head_commit.message, 'chore(main): update files for release')"
     steps:
       - uses: actions/checkout@v4
-      - name: Create Git Tag
-        run: |
-          contiamo-release-please tag-release
+        with:
+          fetch-depth: 0
+
+      - name: Install tool
+        run: pip install contiamo-release-please
+
+      - name: Create and push tag
+        run: contiamo-release-please tag-release -v
 ```
 
-## How It Works
+## Features
 
-1. **Find latest git tag** - Gets the most recent tag in the repository (or uses `0.1.0` if none exists)
-2. **Get commits** - Retrieves all commits since that tag
-3. **Parse commits** - Extracts the type from each conventional commit message
-4. **Determine release type** - Finds the highest priority release type:
-   - `major` > `minor` > `patch`
-5. **Calculate version** - Bumps the appropriate version component
+### Automatic Version Calculation
 
-## Version Precedence
-
-When multiple commit types are present, the tool uses the highest priority:
-
-```
-fix: bug fix           →  patch (1.2.3 → 1.2.4)
-feat: new feature      →  minor (1.2.3 → 1.3.0)
-feat!: breaking change →  major (1.2.3 → 2.0.0)
+```bash
+# Show next version
+contiamo-release-please next-version -v
 ```
 
-If you have commits with different types:
+### Changelog Generation
+
+```bash
+# Generate changelog (dry-run)
+contiamo-release-please generate-changelog --dry-run -v
 ```
-fix: bug 1
-fix: bug 2
+
+### File Version Bumping
+
+Bump version in `pyproject.toml`, Helm charts, or any YAML/TOML file:
+
+```yaml
+# contiamo-release-please.yaml
+extra-files:
+  - type: toml
+    path: pyproject.toml
+    toml-path: $.project.version
+  - type: yaml
+    path: charts/myapp/Chart.yaml
+    yaml-path: $.version
+```
+
+```bash
+contiamo-release-please bump-files -v
+```
+
+### Pull Request Creation
+
+Automatically creates PRs on GitHub or Azure DevOps:
+
+```bash
+# GitHub (auto-detected)
+export GITHUB_TOKEN="ghp_xxx"
+contiamo-release-please release -v
+
+# Azure DevOps
+export AZURE_DEVOPS_TOKEN="xxx"
+contiamo-release-please release --git-host azure -v
+```
+
+## Configuration
+
+Create `contiamo-release-please.yaml` in your repository root:
+
+```yaml
+# Optional: Version prefix (default: "")
+version-prefix: "v"
+
+release-rules:
+  major:
+    - breaking
+  minor:
+    - feat
+  patch:
+    - fix
+    - chore
+    - docs
+# Optional: Git identity for commits (default shown)
+# git:
+#   user-name: "Contiamo Release Bot"
+#   user-email: "contiamo-release@ctmo.io"
+
+# Optional: GitHub PR creation
+# github:
+#   token: "ghp_xxx"  # Or use GITHUB_TOKEN env var
+
+# Optional: Azure DevOps PR creation
+# azure:
+#   token: "xxx"  # Or use AZURE_DEVOPS_TOKEN env var
+```
+
+## Conventional Commits
+
+Use [conventional commits](https://www.conventionalcommits.org/) format:
+
+```
+<type>[optional scope]: <description>
+```
+
+**Examples:**
+
+```bash
+fix: resolve authentication bug              # patch bump
+feat: add user profile page                  # minor bump
+feat!: redesign authentication API           # major bump
+```
+
+**Breaking changes:**
+
+```bash
+feat!: breaking change
+# or
 feat: new feature
+
+BREAKING CHANGE: This changes the API
 ```
-
-Result: **minor** bump (because `feat` has higher priority than `fix`)
-
-## Development
-
-### Running Tests
-
-```bash
-uv run pytest
-```
-
-### Code Quality
-
-```bash
-# Run linter
-uv run ruff check .
-
-# Run type checker
-uv run pyright
-```
-
-## Roadmap
-
-### Phase 1 (Current)
-- ✅ Version determination based on commit analysis
-- ✅ Configurable release rules
-- ✅ Breaking change detection
-
-### Phase 2 (Future)
-- 📝 Changelog generation
-- 📝 Configurable changelog sections
-- 📝 Customisable changelog templates
-
-### Phase 3 (Future)
-- 📝 Automatic version bumping in files (like `pyproject.toml`, `version.txt`)
-- 📝 Git tag creation
-- 📝 Release commit creation
 
 ## Requirements
 
-- Python 3.14+
+- Python 3.12+
 - Git
-- UV (recommended) or pip
+- Configured `contiamo-release-please.yaml`
 
 ## Licence
 
 MIT
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
