@@ -1,5 +1,6 @@
 """File version bumping for contiamo-release-please."""
 
+import re
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any
@@ -133,11 +134,99 @@ class TomlFileBumper(FileBumper):
             raise FileBumperError(f"Failed to bump version in {file_path}: {e}")
 
 
+class GenericFileBumper(FileBumper):
+    """Generic file version bumper using marker comments."""
+
+    # Marker names
+    START_MARKER = "contiamo-release-please-bump-start"
+    END_MARKER = "contiamo-release-please-bump-end"
+
+    # Version regex pattern (matches semantic versions with optional 'v' prefix)
+    VERSION_PATTERN = re.compile(r"\bv?\d+\.\d+\.\d+\b")
+
+    def bump_version(
+        self, file_path: Path, path_spec: str, version: str
+    ) -> None:
+        """Bump version in a generic file using marker comments.
+
+        Scans the file for marker pairs (contiamo-release-please-bump-start/end)
+        and replaces version strings between them with the new version.
+
+        Args:
+            file_path: Path to the file
+            path_spec: Not used for generic files (kept for interface compatibility)
+            version: Version string to set (should already include prefix if needed)
+
+        Raises:
+            FileBumperError: If file not found, no markers found, or write fails
+        """
+        if not file_path.exists():
+            raise FileBumperError(f"File not found: {file_path}")
+
+        try:
+            # Read file
+            with open(file_path, "r") as f:
+                lines = f.readlines()
+
+            # Track state and modified lines
+            inside_block = False
+            found_markers = False
+            modified_lines = []
+            versions_replaced = 0
+
+            for line in lines:
+                # Check for start marker
+                if self.START_MARKER in line:
+                    inside_block = True
+                    found_markers = True
+                    modified_lines.append(line)
+                    continue
+
+                # Check for end marker
+                if self.END_MARKER in line:
+                    inside_block = False
+                    modified_lines.append(line)
+                    continue
+
+                # If inside block, replace version strings
+                if inside_block:
+                    # Replace all version occurrences on this line
+                    original_line = line
+                    line = self.VERSION_PATTERN.sub(version, line)
+                    if line != original_line:
+                        versions_replaced += 1
+
+                modified_lines.append(line)
+
+            # Validate markers were found
+            if not found_markers:
+                raise FileBumperError(
+                    f"No '{self.START_MARKER}' markers found in {file_path}. "
+                    f"Add marker comments to indicate where versions should be updated."
+                )
+
+            # Validate at least one version was replaced
+            if versions_replaced == 0:
+                raise FileBumperError(
+                    f"No version strings found between markers in {file_path}"
+                )
+
+            # Write back to file
+            with open(file_path, "w") as f:
+                f.writelines(modified_lines)
+
+        except FileBumperError:
+            # Re-raise our own errors
+            raise
+        except Exception as e:
+            raise FileBumperError(f"Failed to bump version in {file_path}: {e}")
+
+
 def get_bumper_for_type(file_type: str) -> FileBumper:
     """Get the appropriate bumper for a file type.
 
     Args:
-        file_type: File type (e.g., 'yaml', 'toml')
+        file_type: File type (e.g., 'yaml', 'toml', 'generic')
 
     Returns:
         FileBumper instance for the type
@@ -148,6 +237,7 @@ def get_bumper_for_type(file_type: str) -> FileBumper:
     bumpers = {
         "yaml": YamlFileBumper(),
         "toml": TomlFileBumper(),
+        "generic": GenericFileBumper(),
     }
 
     bumper = bumpers.get(file_type)
@@ -209,6 +299,9 @@ def bump_files(
                     f"Missing 'toml-path' for TOML file: {file_config['path']}"
                 )
                 continue
+        elif file_type == "generic":
+            # Generic files don't need a path_spec (uses markers instead)
+            path_spec = ""
         else:
             results["errors"].append(f"Unsupported file type: {file_type}")
             continue

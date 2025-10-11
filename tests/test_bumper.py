@@ -439,3 +439,228 @@ def test_bump_files_missing_toml_path():
         assert len(results["updated"]) == 0
         assert len(results["errors"]) == 1
         assert "Missing 'toml-path'" in results["errors"][0]
+
+
+# Generic file bumper tests
+
+
+def test_get_bumper_for_generic():
+    """Test getting bumper for generic files."""
+    from contiamo_release_please.bumper import GenericFileBumper, get_bumper_for_type
+
+    bumper = get_bumper_for_type("generic")
+    assert isinstance(bumper, GenericFileBumper)
+
+
+def test_generic_bumper_simple():
+    """Test generic bumper with simple markers."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        test_file = Path(tmpdir) / "README.md"
+
+        # Create test file with markers
+        content = """# My Project
+
+<!--- contiamo-release-please-bump-start --->
+Install: `pip install myproject==1.0.0`
+<!--- contiamo-release-please-bump-end --->
+
+Some other content.
+"""
+        test_file.write_text(content)
+
+        # Bump version
+        from contiamo_release_please.bumper import GenericFileBumper
+
+        bumper = GenericFileBumper()
+        bumper.bump_version(test_file, "", "2.0.0")
+
+        # Verify
+        result = test_file.read_text()
+        assert "2.0.0" in result
+        assert "1.0.0" not in result
+        assert "Some other content" in result
+
+
+def test_generic_bumper_with_prefix():
+    """Test generic bumper with version prefix."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        test_file = Path(tmpdir) / "README.md"
+
+        # Create test file with markers and v prefix
+        content = """# Installation
+
+<!--- contiamo-release-please-bump-start --->
+uv tool install git+ssh://git@github.com/org/repo.git@v1.0.0
+<!--- contiamo-release-please-bump-end --->
+"""
+        test_file.write_text(content)
+
+        # Bump version with prefix
+        from contiamo_release_please.bumper import GenericFileBumper
+
+        bumper = GenericFileBumper()
+        bumper.bump_version(test_file, "", "v2.5.0")
+
+        # Verify
+        result = test_file.read_text()
+        assert "v2.5.0" in result
+        assert "v1.0.0" not in result
+
+
+def test_generic_bumper_multiple_versions():
+    """Test generic bumper replaces multiple versions in block."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        test_file = Path(tmpdir) / "README.md"
+
+        # Create test file with multiple versions
+        content = """# Install
+
+<!--- contiamo-release-please-bump-start --->
+Version 1.0.0 or v1.0.0
+<!--- contiamo-release-please-bump-end --->
+"""
+        test_file.write_text(content)
+
+        # Bump version
+        from contiamo_release_please.bumper import GenericFileBumper
+
+        bumper = GenericFileBumper()
+        bumper.bump_version(test_file, "", "2.0.0")
+
+        # Verify both replaced
+        result = test_file.read_text()
+        assert result.count("2.0.0") == 2
+        assert "1.0.0" not in result
+
+
+def test_generic_bumper_multiple_blocks():
+    """Test generic bumper handles multiple marker blocks."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        test_file = Path(tmpdir) / "README.md"
+
+        # Create test file with multiple blocks
+        content = """# Block 1
+<!--- contiamo-release-please-bump-start --->
+Version: 1.0.0
+<!--- contiamo-release-please-bump-end --->
+
+# Block 2
+<!--- contiamo-release-please-bump-start --->
+Another: v1.0.0
+<!--- contiamo-release-please-bump-end --->
+"""
+        test_file.write_text(content)
+
+        # Bump version
+        from contiamo_release_please.bumper import GenericFileBumper
+
+        bumper = GenericFileBumper()
+        bumper.bump_version(test_file, "", "v2.0.0")
+
+        # Verify both blocks updated
+        result = test_file.read_text()
+        assert result.count("v2.0.0") == 2
+        assert "1.0.0" not in result
+
+
+def test_generic_bumper_no_markers():
+    """Test generic bumper fails when no markers found."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        test_file = Path(tmpdir) / "README.md"
+
+        # Create test file without markers
+        content = "Version: 1.0.0"
+        test_file.write_text(content)
+
+        # Should fail
+        from contiamo_release_please.bumper import FileBumperError, GenericFileBumper
+
+        bumper = GenericFileBumper()
+        with pytest.raises(FileBumperError, match="No.*markers found"):
+            bumper.bump_version(test_file, "", "2.0.0")
+
+
+def test_generic_bumper_no_version_in_block():
+    """Test generic bumper fails when no version found in markers."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        test_file = Path(tmpdir) / "README.md"
+
+        # Create test file with markers but no version
+        content = """<!--- contiamo-release-please-bump-start --->
+No version here!
+<!--- contiamo-release-please-bump-end --->
+"""
+        test_file.write_text(content)
+
+        # Should fail
+        from contiamo_release_please.bumper import FileBumperError, GenericFileBumper
+
+        bumper = GenericFileBumper()
+        with pytest.raises(FileBumperError, match="No version strings found"):
+            bumper.bump_version(test_file, "", "2.0.0")
+
+
+def test_generic_bumper_file_not_found():
+    """Test generic bumper fails when file doesn't exist."""
+    from contiamo_release_please.bumper import FileBumperError, GenericFileBumper
+
+    bumper = GenericFileBumper()
+    with pytest.raises(FileBumperError, match="File not found"):
+        bumper.bump_version(Path("/nonexistent/file.md"), "", "2.0.0")
+
+
+def test_bump_files_generic():
+    """Test bump_files with generic file type."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        git_root = Path(tmpdir)
+        readme = git_root / "README.md"
+
+        # Create test file
+        content = """<!--- contiamo-release-please-bump-start --->
+Version: 1.0.0
+<!--- contiamo-release-please-bump-end --->
+"""
+        readme.write_text(content)
+
+        # Configure generic file
+        extra_files = [{"type": "generic", "path": "README.md"}]
+
+        results = bump_files(extra_files, "2.0.0", git_root, dry_run=False)
+
+        assert len(results["updated"]) == 1
+        assert len(results["errors"]) == 0
+        assert "README.md" in results["updated"][0]
+
+        # Verify content updated
+        result = readme.read_text()
+        assert "2.0.0" in result
+        assert "1.0.0" not in result
+
+
+def test_bump_files_generic_with_prefix():
+    """Test bump_files with generic file and use-prefix."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        git_root = Path(tmpdir)
+        readme = git_root / "README.md"
+
+        # Create test file
+        content = """<!--- contiamo-release-please-bump-start --->
+Install: git+ssh://git@github.com/org/repo.git@v1.0.0
+<!--- contiamo-release-please-bump-end --->
+"""
+        readme.write_text(content)
+
+        # Configure with prefix
+        extra_files = [
+            {"type": "generic", "path": "README.md", "use-prefix": "v"}
+        ]
+
+        results = bump_files(extra_files, "2.0.0", git_root, dry_run=False)
+
+        assert len(results["updated"]) == 1
+        assert len(results["errors"]) == 0
+
+        # Verify content updated with prefix
+        result = readme.read_text()
+        assert "v2.0.0" in result
+        assert "v1.0.0" not in result

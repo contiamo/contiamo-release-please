@@ -20,17 +20,21 @@ contiamo-release-please tag-release -v
 
 ## Installation
 
+<!--- contiamo-release-please-bump-start --->
+
 Install using uv:
 
 ```bash
-uv tool install git+ssh://git@github.com/contiamo/contiamo-release-please.git@v0.1.0
+uv tool install git+ssh://git@github.com/contiamo/contiamo-release-please.git@v0.1.1
 ```
 
 To upgrade to a specific version, use the `--force` flag:
 
 ```bash
-uv tool install --force git+ssh://git@github.com/contiamo/contiamo-release-please.git@v0.1.0
+uv tool install --force git+ssh://git@github.com/contiamo/contiamo-release-please.git@v0.1.1
 ```
+
+<!--- contiamo-release-please-bump-end --->
 
 ## GitHub Actions Example
 
@@ -57,7 +61,7 @@ jobs:
         uses: astral-sh/setup-uv@v5
 
       - name: Install tool
-        run: uv tool install git+ssh://git@github.com/contiamo/contiamo-release-please.git@v0.1.0
+        run: uv tool install git+ssh://git@github.com/contiamo/contiamo-release-please.git@v0.1.1
 
       - name: Create release PR
         run: contiamo-release-please release -v
@@ -78,7 +82,7 @@ jobs:
         uses: astral-sh/setup-uv@v5
 
       - name: Install tool
-        run: uv tool install git+ssh://git@github.com/contiamo/contiamo-release-please.git@v0.1.0
+        run: uv tool install git+ssh://git@github.com/contiamo/contiamo-release-please.git@v0.1.1
 
       - name: Create and push tag
         run: contiamo-release-please tag-release -v
