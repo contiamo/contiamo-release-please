@@ -148,7 +148,7 @@ def extract_changelog_for_version(changelog_path: Path, version: str) -> str | N
             break
 
     # Extract the content (excluding the version header itself)
-    entry_lines = lines[start_index + 1:end_index]
+    entry_lines = lines[start_index + 1 : end_index]
 
     # Remove leading/trailing empty lines
     while entry_lines and entry_lines[0].strip() == "":

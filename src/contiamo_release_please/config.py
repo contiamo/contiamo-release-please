@@ -289,6 +289,7 @@ changelog-sections:
 # Supported file types:
 #   - yaml: YAML files (requires yaml-path with JSONPath)
 #   - toml: TOML files (requires toml-path with JSONPath)
+#   - json: JSON files (requires json-path with JSONPath)
 #   - generic: Any text file (requires marker comments in the file)
 #
 # Examples:
@@ -303,6 +304,12 @@ extra-files: []
   # - type: toml
   #   path: pyproject.toml
   #   toml-path: $.project.version
+  #   use-prefix: ""  # Optional: version prefix for this file
+
+  # JSON file example (e.g., Node.js package.json):
+  # - type: json
+  #   path: package.json
+  #   json-path: $.version
   #   use-prefix: ""  # Optional: version prefix for this file
 
   # Generic file example (any text file with marker comments):

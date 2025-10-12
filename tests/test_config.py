@@ -7,7 +7,6 @@ import pytest
 import yaml
 
 from contiamo_release_please.config import (
-    ConfigError,
     ReleaseConfig,
     generate_config_template,
 )
@@ -100,9 +99,9 @@ def test_generate_config_template_includes_all_commit_types():
     # Check for common conventional commit types
     expected_types = ["feat", "fix", "chore", "docs", "breaking"]
     for commit_type in expected_types:
-        assert (
-            commit_type in all_types
-        ), f"Expected commit type '{commit_type}' not in generated config"
+        assert commit_type in all_types, (
+            f"Expected commit type '{commit_type}' not in generated config"
+        )
 
 
 def test_generate_config_template_includes_changelog_sections():

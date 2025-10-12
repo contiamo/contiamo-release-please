@@ -1,5 +1,6 @@
 """File version bumping for contiamo-release-please."""
 
+import json
 import re
 from abc import ABC, abstractmethod
 from pathlib import Path
@@ -20,9 +21,7 @@ class FileBumper(ABC):
     """Abstract base class for file version bumpers."""
 
     @abstractmethod
-    def bump_version(
-        self, file_path: Path, path_spec: str, version: str
-    ) -> None:
+    def bump_version(self, file_path: Path, path_spec: str, version: str) -> None:
         """Bump version in a file.
 
         Args:
@@ -39,9 +38,7 @@ class FileBumper(ABC):
 class YamlFileBumper(FileBumper):
     """YAML file version bumper using JSONPath."""
 
-    def bump_version(
-        self, file_path: Path, path_spec: str, version: str
-    ) -> None:
+    def bump_version(self, file_path: Path, path_spec: str, version: str) -> None:
         """Bump version in a YAML file.
 
         Args:
@@ -69,9 +66,7 @@ class YamlFileBumper(FileBumper):
             # Find and update the value
             matches = jsonpath_expr.find(data)
             if not matches:
-                raise FileBumperError(
-                    f"Path '{path_spec}' not found in {file_path}"
-                )
+                raise FileBumperError(f"Path '{path_spec}' not found in {file_path}")
 
             # Update all matching paths
             jsonpath_expr.update(data, version)
@@ -89,9 +84,7 @@ class YamlFileBumper(FileBumper):
 class TomlFileBumper(FileBumper):
     """TOML file version bumper using JSONPath."""
 
-    def bump_version(
-        self, file_path: Path, path_spec: str, version: str
-    ) -> None:
+    def bump_version(self, file_path: Path, path_spec: str, version: str) -> None:
         """Bump version in a TOML file.
 
         Args:
@@ -116,9 +109,7 @@ class TomlFileBumper(FileBumper):
             # Find and update the value
             matches = jsonpath_expr.find(data)
             if not matches:
-                raise FileBumperError(
-                    f"Path '{path_spec}' not found in {file_path}"
-                )
+                raise FileBumperError(f"Path '{path_spec}' not found in {file_path}")
 
             # Update all matching paths
             jsonpath_expr.update(data, version)
@@ -134,6 +125,53 @@ class TomlFileBumper(FileBumper):
             raise FileBumperError(f"Failed to bump version in {file_path}: {e}")
 
 
+class JsonFileBumper(FileBumper):
+    """JSON file version bumper using JSONPath."""
+
+    def bump_version(self, file_path: Path, path_spec: str, version: str) -> None:
+        """Bump version in a JSON file.
+
+        Args:
+            file_path: Path to the JSON file
+            path_spec: JSONPath expression (e.g., '$.version', '$.package.version')
+            version: Version string to set
+
+        Raises:
+            FileBumperError: If file not found, invalid path, or write fails
+        """
+        if not file_path.exists():
+            raise FileBumperError(f"File not found: {file_path}")
+
+        try:
+            # Read JSON file
+            with open(file_path, "r") as f:
+                data = json.load(f)
+
+            if data is None:
+                raise FileBumperError(f"Empty or invalid JSON file: {file_path}")
+
+            # Parse JSONPath
+            jsonpath_expr = parse(path_spec)
+
+            # Find and update the value
+            matches = jsonpath_expr.find(data)
+            if not matches:
+                raise FileBumperError(f"Path '{path_spec}' not found in {file_path}")
+
+            # Update all matching paths
+            jsonpath_expr.update(data, version)
+
+            # Write back to file with consistent formatting
+            with open(file_path, "w") as f:
+                json.dump(data, f, indent=2, ensure_ascii=False)
+                f.write("\n")  # Add trailing newline
+
+        except json.JSONDecodeError as e:
+            raise FileBumperError(f"JSON parsing error in {file_path}: {e}")
+        except Exception as e:
+            raise FileBumperError(f"Failed to bump version in {file_path}: {e}")
+
+
 class GenericFileBumper(FileBumper):
     """Generic file version bumper using marker comments."""
 
@@ -144,9 +182,7 @@ class GenericFileBumper(FileBumper):
     # Version regex pattern (matches semantic versions with optional 'v' prefix)
     VERSION_PATTERN = re.compile(r"\bv?\d+\.\d+\.\d+\b")
 
-    def bump_version(
-        self, file_path: Path, path_spec: str, version: str
-    ) -> None:
+    def bump_version(self, file_path: Path, path_spec: str, version: str) -> None:
         """Bump version in a generic file using marker comments.
 
         Scans the file for marker pairs (contiamo-release-please-bump-start/end)
@@ -226,7 +262,7 @@ def get_bumper_for_type(file_type: str) -> FileBumper:
     """Get the appropriate bumper for a file type.
 
     Args:
-        file_type: File type (e.g., 'yaml', 'toml', 'generic')
+        file_type: File type (e.g., 'yaml', 'toml', 'json', 'generic')
 
     Returns:
         FileBumper instance for the type
@@ -237,6 +273,7 @@ def get_bumper_for_type(file_type: str) -> FileBumper:
     bumpers = {
         "yaml": YamlFileBumper(),
         "toml": TomlFileBumper(),
+        "json": JsonFileBumper(),
         "generic": GenericFileBumper(),
     }
 
@@ -297,6 +334,13 @@ def bump_files(
             if not path_spec:
                 results["errors"].append(
                     f"Missing 'toml-path' for TOML file: {file_config['path']}"
+                )
+                continue
+        elif file_type == "json":
+            path_spec = file_config.get("json-path")
+            if not path_spec:
+                results["errors"].append(
+                    f"Missing 'json-path' for JSON file: {file_config['path']}"
                 )
                 continue
         elif file_type == "generic":

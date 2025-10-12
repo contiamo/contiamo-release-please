@@ -72,7 +72,9 @@ def get_repo_info(git_root: Path) -> tuple[str, str]:
         # - https://github.com/owner/repo
 
         # HTTPS format
-        https_match = re.match(r"https://github\.com/([^/]+)/(.+?)(?:\.git)?$", remote_url)
+        https_match = re.match(
+            r"https://github\.com/([^/]+)/(.+?)(?:\.git)?$", remote_url
+        )
         if https_match:
             return https_match.group(1), https_match.group(2)
 
@@ -367,4 +369,6 @@ def create_or_update_pr(
     else:
         if verbose:
             print(f"Creating new PR from {head_branch} to {base_branch}")
-        return create_pull_request(owner, repo, title, body, head_branch, base_branch, token)
+        return create_pull_request(
+            owner, repo, title, body, head_branch, base_branch, token
+        )

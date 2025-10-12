@@ -1,5 +1,6 @@
 """Tests for file version bumping."""
 
+import json
 import tempfile
 from pathlib import Path
 
@@ -9,6 +10,7 @@ import yaml
 
 from contiamo_release_please.bumper import (
     FileBumperError,
+    JsonFileBumper,
     TomlFileBumper,
     YamlFileBumper,
     bump_files,
@@ -22,10 +24,16 @@ def test_get_bumper_for_yaml():
     assert isinstance(bumper, YamlFileBumper)
 
 
+def test_get_bumper_for_json():
+    """Test getting JSON bumper."""
+    bumper = get_bumper_for_type("json")
+    assert isinstance(bumper, JsonFileBumper)
+
+
 def test_get_bumper_for_unsupported_type():
     """Test getting bumper for unsupported type."""
-    with pytest.raises(FileBumperError, match="Unsupported file type: json"):
-        get_bumper_for_type("json")
+    with pytest.raises(FileBumperError, match="Unsupported file type: xml"):
+        get_bumper_for_type("xml")
 
 
 def test_yaml_bumper_simple_path():
@@ -175,9 +183,7 @@ def test_bump_files_dry_run():
         with open(chart_file, "w") as f:
             yaml.safe_dump(data, f)
 
-        extra_files = [
-            {"type": "yaml", "path": "Chart.yaml", "yaml-path": "$.version"}
-        ]
+        extra_files = [{"type": "yaml", "path": "Chart.yaml", "yaml-path": "$.version"}]
 
         # Bump files in dry-run mode
         results = bump_files(extra_files, "1.2.3", git_root, dry_run=True)
@@ -283,6 +289,146 @@ def test_bump_files_multiple_files():
             with open(f, "r") as fh:
                 result = yaml.safe_load(fh)
             assert result["version"] == "1.2.3"
+
+
+# JSON File Bumper Tests
+
+
+def test_json_bumper_simple_path():
+    """Test bumping version in JSON with simple path."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        json_file = Path(tmpdir) / "package.json"
+
+        # Create test package.json
+        data = {"version": "0.1.0", "name": "test-package"}
+        with open(json_file, "w") as f:
+            json.dump(data, f, indent=2)
+
+        # Bump version
+        bumper = JsonFileBumper()
+        bumper.bump_version(json_file, "$.version", "1.2.3")
+
+        # Verify
+        with open(json_file, "r") as f:
+            result = json.load(f)
+
+        assert result["version"] == "1.2.3"
+        assert result["name"] == "test-package"  # Other fields unchanged
+
+
+def test_json_bumper_nested_path():
+    """Test bumping version in JSON with nested path."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        json_file = Path(tmpdir) / "config.json"
+
+        # Create test JSON with nested structure
+        data = {"project": {"version": "0.1.0", "name": "test"}}
+        with open(json_file, "w") as f:
+            json.dump(data, f, indent=2)
+
+        # Bump version
+        bumper = JsonFileBumper()
+        bumper.bump_version(json_file, "$.project.version", "1.2.3")
+
+        # Verify
+        with open(json_file, "r") as f:
+            result = json.load(f)
+
+        assert result["project"]["version"] == "1.2.3"
+        assert result["project"]["name"] == "test"
+
+
+def test_json_bumper_preserves_formatting():
+    """Test that JSON bumper preserves structure and formatting."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        json_file = Path(tmpdir) / "package.json"
+
+        # Create test package.json with multiple fields
+        data = {
+            "name": "test-package",
+            "version": "0.4.0",
+            "description": "A test package",
+            "scripts": {"test": "jest", "build": "webpack"},
+        }
+        with open(json_file, "w") as f:
+            json.dump(data, f, indent=2)
+            f.write("\n")
+
+        # Bump version
+        bumper = JsonFileBumper()
+        bumper.bump_version(json_file, "$.version", "1.0.0")
+
+        # Verify
+        with open(json_file, "r") as f:
+            result = json.load(f)
+
+        assert result["version"] == "1.0.0"
+        assert result["name"] == "test-package"
+        assert result["description"] == "A test package"
+        assert result["scripts"] == {"test": "jest", "build": "webpack"}
+
+        # Verify file has trailing newline
+        with open(json_file, "r") as f:
+            content = f.read()
+            assert content.endswith("\n")
+
+
+def test_json_bumper_file_not_found():
+    """Test error when file doesn't exist."""
+    bumper = JsonFileBumper()
+
+    with pytest.raises(FileBumperError, match="File not found"):
+        bumper.bump_version(Path("/nonexistent/file.json"), "$.version", "1.0.0")
+
+
+def test_json_bumper_invalid_path():
+    """Test error when JSONPath doesn't match."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        json_file = Path(tmpdir) / "package.json"
+
+        # Create test JSON
+        data = {"version": "0.1.0"}
+        with open(json_file, "w") as f:
+            json.dump(data, f, indent=2)
+
+        bumper = JsonFileBumper()
+
+        with pytest.raises(FileBumperError, match="Path '.*' not found"):
+            bumper.bump_version(json_file, "$.nonexistent", "1.0.0")
+
+
+def test_json_bumper_with_prefix():
+    """Test bumping JSON with version prefix."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        git_root = Path(tmpdir)
+        json_file = git_root / "package.json"
+
+        # Create test file
+        data = {"version": "0.1.0"}
+        with open(json_file, "w") as f:
+            json.dump(data, f, indent=2)
+
+        # Configure with prefix
+        extra_files = [
+            {
+                "type": "json",
+                "path": "package.json",
+                "json-path": "$.version",
+                "use-prefix": "v",
+            },
+        ]
+
+        # Bump files
+        results = bump_files(extra_files, "1.2.3", git_root, dry_run=False)
+
+        assert len(results["updated"]) == 1
+        assert len(results["errors"]) == 0
+
+        # Verify version includes prefix
+        with open(json_file, "r") as f:
+            result = json.load(f)
+
+        assert result["version"] == "v1.2.3"
 
 
 # TOML File Bumper Tests
@@ -651,9 +797,7 @@ Install: git+ssh://git@github.com/org/repo.git@v1.0.0
         readme.write_text(content)
 
         # Configure with prefix
-        extra_files = [
-            {"type": "generic", "path": "README.md", "use-prefix": "v"}
-        ]
+        extra_files = [{"type": "generic", "path": "README.md", "use-prefix": "v"}]
 
         results = bump_files(extra_files, "2.0.0", git_root, dry_run=False)
 

@@ -75,15 +75,14 @@ def get_azure_repo_info(git_root: Path) -> tuple[str, str, str]:
         # New Azure DevOps format (dev.azure.com)
         https_match = re.match(
             r"https://(?:[^@]+@)?dev\.azure\.com/([^/]+)/([^/]+)/_git/(.+?)(?:\.git)?$",
-            remote_url
+            remote_url,
         )
         if https_match:
             return https_match.group(1), https_match.group(2), https_match.group(3)
 
         # SSH format
         ssh_match = re.match(
-            r"git@ssh\.dev\.azure\.com:v3/([^/]+)/([^/]+)/(.+?)(?:\.git)?$",
-            remote_url
+            r"git@ssh\.dev\.azure\.com:v3/([^/]+)/([^/]+)/(.+?)(?:\.git)?$", remote_url
         )
         if ssh_match:
             return ssh_match.group(1), ssh_match.group(2), ssh_match.group(3)
@@ -91,7 +90,7 @@ def get_azure_repo_info(git_root: Path) -> tuple[str, str, str]:
         # Old visualstudio.com format
         vs_match = re.match(
             r"https://([^.]+)\.visualstudio\.com/([^/]+)/_git/(.+?)(?:\.git)?$",
-            remote_url
+            remote_url,
         )
         if vs_match:
             return vs_match.group(1), vs_match.group(2), vs_match.group(3)
@@ -145,7 +144,7 @@ def find_existing_pr(
             auth=("", token),  # Empty username, PAT as password
             headers=headers,
             params=params,
-            timeout=30
+            timeout=30,
         )
         response.raise_for_status()
 
@@ -332,4 +331,6 @@ def create_or_update_pr(
     else:
         if verbose:
             print(f"Creating new PR from {head_branch} to {base_branch}")
-        return create_pull_request(org, project, repo, title, body, head_branch, base_branch, token)
+        return create_pull_request(
+            org, project, repo, title, body, head_branch, base_branch, token
+        )
