@@ -27,6 +27,7 @@ from contiamo_release_please.git import (
     get_commits_since_tag,
     get_current_branch,
     get_git_root,
+    get_latest_commit_message,
     get_latest_tag,
     push_tag,
     tag_exists,
@@ -613,7 +614,26 @@ def tag_release_workflow(
             f"Please merge the release PR first and run from the source branch."
         )
 
-    # Validation 2: Read version from version.txt
+    # Validation 2: Check that latest commit is a release PR merge
+    latest_commit = get_latest_commit_message(git_root)
+    if not is_release_commit(latest_commit, release_branch):
+        source_branch = config.get_source_branch()
+        raise ReleaseError(
+            f"Cannot create release tag: Latest commit is not a release PR merge.\n\n"
+            f"Latest commit message:\n  {latest_commit}\n\n"
+            f"Expected pattern (squash merge):\n"
+            f"  chore({source_branch}): update files for release X.Y.Z\n\n"
+            f"Or pattern (merge commit):\n"
+            f"  Merge branch '{release_branch}' into {source_branch}\n\n"
+            f"The tag-release command should only be run after merging a release PR.\n\n"
+            f"To create a release:\n"
+            f"  1. Run: contiamo-release-please release\n"
+            f"  2. Review and merge the release PR\n"
+            f"  3. Run: contiamo-release-please tag-release\n\n"
+            f"If you need to create a tag manually, use 'git tag' directly."
+        )
+
+    # Validation 3: Read version from version.txt
     version_file = git_root / "version.txt"
     if not version_file.exists():
         raise ReleaseError(
@@ -629,7 +649,7 @@ def tag_release_workflow(
     if not version:
         raise ReleaseError("version.txt is empty")
 
-    # Validation 3: Check if tag already exists
+    # Validation 4: Check if tag already exists
     if tag_exists(version, git_root):
         raise ReleaseError(
             f"Tag '{version}' already exists. "

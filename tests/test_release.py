@@ -437,6 +437,7 @@ def test_tag_release_workflow_success(tmp_path):
          patch("contiamo_release_please.release.load_config") as mock_config, \
          patch("contiamo_release_please.release.configure_git_identity"), \
          patch("contiamo_release_please.release.get_current_branch") as mock_branch, \
+         patch("contiamo_release_please.release.get_latest_commit_message") as mock_commit, \
          patch("contiamo_release_please.release.tag_exists") as mock_tag_exists, \
          patch("contiamo_release_please.release.create_tag") as mock_create_tag, \
          patch("contiamo_release_please.release.push_tag") as mock_push_tag:
@@ -448,6 +449,7 @@ def test_tag_release_workflow_success(tmp_path):
         mock_config_obj.get_git_user_email.return_value = "test@example.com"
         mock_config.return_value = mock_config_obj
         mock_branch.return_value = "main"
+        mock_commit.return_value = "chore(main): update files for release 1.2.3"
         mock_tag_exists.return_value = False
 
         result = tag_release_workflow()
@@ -486,7 +488,8 @@ def test_tag_release_workflow_no_version_file(tmp_path):
     with patch("contiamo_release_please.release.get_git_root") as mock_git_root, \
          patch("contiamo_release_please.release.load_config") as mock_config, \
          patch("contiamo_release_please.release.configure_git_identity"), \
-         patch("contiamo_release_please.release.get_current_branch") as mock_branch:
+         patch("contiamo_release_please.release.get_current_branch") as mock_branch, \
+         patch("contiamo_release_please.release.get_latest_commit_message") as mock_commit:
 
         mock_git_root.return_value = tmp_path
         mock_config_obj = Mock()
@@ -495,6 +498,7 @@ def test_tag_release_workflow_no_version_file(tmp_path):
         mock_config_obj.get_git_user_email.return_value = "test@example.com"
         mock_config.return_value = mock_config_obj
         mock_branch.return_value = "main"
+        mock_commit.return_value = "chore(main): update files for release 1.0.0"
 
         with pytest.raises(ReleaseError, match="version.txt not found"):
             tag_release_workflow()
@@ -508,7 +512,8 @@ def test_tag_release_workflow_empty_version_file(tmp_path):
     with patch("contiamo_release_please.release.get_git_root") as mock_git_root, \
          patch("contiamo_release_please.release.load_config") as mock_config, \
          patch("contiamo_release_please.release.configure_git_identity"), \
-         patch("contiamo_release_please.release.get_current_branch") as mock_branch:
+         patch("contiamo_release_please.release.get_current_branch") as mock_branch, \
+         patch("contiamo_release_please.release.get_latest_commit_message") as mock_commit:
 
         mock_git_root.return_value = tmp_path
         mock_config_obj = Mock()
@@ -517,6 +522,7 @@ def test_tag_release_workflow_empty_version_file(tmp_path):
         mock_config_obj.get_git_user_email.return_value = "test@example.com"
         mock_config.return_value = mock_config_obj
         mock_branch.return_value = "main"
+        mock_commit.return_value = "chore(main): update files for release 1.0.0"
 
         with pytest.raises(ReleaseError, match="version.txt is empty"):
             tag_release_workflow()
@@ -531,6 +537,7 @@ def test_tag_release_workflow_tag_already_exists(tmp_path):
          patch("contiamo_release_please.release.load_config") as mock_config, \
          patch("contiamo_release_please.release.configure_git_identity"), \
          patch("contiamo_release_please.release.get_current_branch") as mock_branch, \
+         patch("contiamo_release_please.release.get_latest_commit_message") as mock_commit, \
          patch("contiamo_release_please.release.tag_exists") as mock_tag_exists:
 
         mock_git_root.return_value = tmp_path
@@ -540,6 +547,7 @@ def test_tag_release_workflow_tag_already_exists(tmp_path):
         mock_config_obj.get_git_user_email.return_value = "test@example.com"
         mock_config.return_value = mock_config_obj
         mock_branch.return_value = "main"
+        mock_commit.return_value = "chore(main): update files for release 1.2.3"
         mock_tag_exists.return_value = True
 
         with pytest.raises(ReleaseError, match="Tag 'v1.2.3' already exists"):
@@ -555,6 +563,7 @@ def test_tag_release_workflow_dry_run(tmp_path):
          patch("contiamo_release_please.release.load_config") as mock_config, \
          patch("contiamo_release_please.release.configure_git_identity"), \
          patch("contiamo_release_please.release.get_current_branch") as mock_branch, \
+         patch("contiamo_release_please.release.get_latest_commit_message") as mock_commit, \
          patch("contiamo_release_please.release.tag_exists") as mock_tag_exists, \
          patch("contiamo_release_please.release.create_tag") as mock_create_tag, \
          patch("contiamo_release_please.release.push_tag") as mock_push_tag:
@@ -566,6 +575,7 @@ def test_tag_release_workflow_dry_run(tmp_path):
         mock_config_obj.get_git_user_email.return_value = "test@example.com"
         mock_config.return_value = mock_config_obj
         mock_branch.return_value = "main"
+        mock_commit.return_value = "chore(main): update files for release 1.2.3"
         mock_tag_exists.return_value = False
 
         result = tag_release_workflow(dry_run=True)
@@ -602,6 +612,7 @@ def test_tag_release_workflow_creates_github_release(tmp_path):
          patch("contiamo_release_please.release.load_config") as mock_config, \
          patch("contiamo_release_please.release.configure_git_identity"), \
          patch("contiamo_release_please.release.get_current_branch") as mock_branch, \
+         patch("contiamo_release_please.release.get_latest_commit_message") as mock_commit, \
          patch("contiamo_release_please.release.tag_exists") as mock_tag_exists, \
          patch("contiamo_release_please.release.create_tag"), \
          patch("contiamo_release_please.release.push_tag"), \
@@ -620,6 +631,7 @@ def test_tag_release_workflow_creates_github_release(tmp_path):
         mock_config_obj._config = {}
         mock_config.return_value = mock_config_obj
         mock_branch.return_value = "main"
+        mock_commit.return_value = "chore(main): update files for release 1.2.3"
         mock_tag_exists.return_value = False
         mock_detect_host.return_value = "github"
         mock_token.return_value = "ghp_test_token"
@@ -652,6 +664,7 @@ def test_tag_release_workflow_non_github_skips_release(tmp_path):
          patch("contiamo_release_please.release.load_config") as mock_config, \
          patch("contiamo_release_please.release.configure_git_identity"), \
          patch("contiamo_release_please.release.get_current_branch") as mock_branch, \
+         patch("contiamo_release_please.release.get_latest_commit_message") as mock_commit, \
          patch("contiamo_release_please.release.tag_exists") as mock_tag_exists, \
          patch("contiamo_release_please.release.create_tag"), \
          patch("contiamo_release_please.release.push_tag"), \
@@ -664,6 +677,7 @@ def test_tag_release_workflow_non_github_skips_release(tmp_path):
         mock_config_obj.get_git_user_email.return_value = "test@example.com"
         mock_config.return_value = mock_config_obj
         mock_branch.return_value = "main"
+        mock_commit.return_value = "chore(main): update files for release 1.2.3"
         mock_tag_exists.return_value = False
         mock_detect_host.return_value = "azure"  # Not GitHub
 
@@ -686,6 +700,7 @@ def test_tag_release_workflow_github_release_failure_doesnt_fail_workflow(tmp_pa
          patch("contiamo_release_please.release.load_config") as mock_config, \
          patch("contiamo_release_please.release.configure_git_identity"), \
          patch("contiamo_release_please.release.get_current_branch") as mock_branch, \
+         patch("contiamo_release_please.release.get_latest_commit_message") as mock_commit, \
          patch("contiamo_release_please.release.tag_exists") as mock_tag_exists, \
          patch("contiamo_release_please.release.create_tag"), \
          patch("contiamo_release_please.release.push_tag"), \
@@ -701,6 +716,7 @@ def test_tag_release_workflow_github_release_failure_doesnt_fail_workflow(tmp_pa
         mock_config_obj.config = {}
         mock_config.return_value = mock_config_obj
         mock_branch.return_value = "main"
+        mock_commit.return_value = "chore(main): update files for release 1.2.3"
         mock_tag_exists.return_value = False
         mock_detect_host.return_value = "github"
         mock_token.side_effect = Exception("GitHub API error")
@@ -725,6 +741,7 @@ def test_tag_release_workflow_github_release_dry_run(tmp_path):
          patch("contiamo_release_please.release.load_config") as mock_config, \
          patch("contiamo_release_please.release.configure_git_identity"), \
          patch("contiamo_release_please.release.get_current_branch") as mock_branch, \
+         patch("contiamo_release_please.release.get_latest_commit_message") as mock_commit, \
          patch("contiamo_release_please.release.tag_exists") as mock_tag_exists, \
          patch("contiamo_release_please.release.create_tag") as mock_create_tag, \
          patch("contiamo_release_please.release.push_tag") as mock_push_tag, \
@@ -738,6 +755,7 @@ def test_tag_release_workflow_github_release_dry_run(tmp_path):
         mock_config_obj.get_changelog_path.return_value = "CHANGELOG.md"
         mock_config.return_value = mock_config_obj
         mock_branch.return_value = "main"
+        mock_commit.return_value = "chore(main): update files for release 1.2.3"
         mock_tag_exists.return_value = False
         mock_detect_host.return_value = "github"
 
@@ -770,6 +788,7 @@ def test_tag_release_workflow_github_release_custom_prefix(tmp_path):
          patch("contiamo_release_please.release.load_config") as mock_config, \
          patch("contiamo_release_please.release.configure_git_identity"), \
          patch("contiamo_release_please.release.get_current_branch") as mock_branch, \
+         patch("contiamo_release_please.release.get_latest_commit_message") as mock_commit, \
          patch("contiamo_release_please.release.tag_exists") as mock_tag_exists, \
          patch("contiamo_release_please.release.create_tag"), \
          patch("contiamo_release_please.release.push_tag"), \
@@ -788,6 +807,7 @@ def test_tag_release_workflow_github_release_custom_prefix(tmp_path):
         mock_config_obj._config = {}
         mock_config.return_value = mock_config_obj
         mock_branch.return_value = "main"
+        mock_commit.return_value = "chore(main): update files for release 1.2.3"
         mock_tag_exists.return_value = False
         mock_detect_host.return_value = "github"
         mock_token.return_value = "ghp_test_token"
@@ -830,6 +850,7 @@ def test_tag_release_workflow_github_release_empty_prefix(tmp_path):
          patch("contiamo_release_please.release.load_config") as mock_config, \
          patch("contiamo_release_please.release.configure_git_identity"), \
          patch("contiamo_release_please.release.get_current_branch") as mock_branch, \
+         patch("contiamo_release_please.release.get_latest_commit_message") as mock_commit, \
          patch("contiamo_release_please.release.tag_exists") as mock_tag_exists, \
          patch("contiamo_release_please.release.create_tag"), \
          patch("contiamo_release_please.release.push_tag"), \
@@ -848,6 +869,7 @@ def test_tag_release_workflow_github_release_empty_prefix(tmp_path):
         mock_config_obj._config = {}
         mock_config.return_value = mock_config_obj
         mock_branch.return_value = "main"
+        mock_commit.return_value = "chore(main): update files for release 1.2.3"
         mock_tag_exists.return_value = False
         mock_detect_host.return_value = "github"
         mock_token.return_value = "ghp_test_token"
@@ -867,3 +889,100 @@ def test_tag_release_workflow_github_release_empty_prefix(tmp_path):
         assert call_args.kwargs["release_name"] == "3.0.0"
         # Verify the changelog was correctly extracted
         assert "No prefix version" in call_args.kwargs["body"]
+
+
+def test_tag_release_workflow_fails_on_non_release_commit(tmp_path):
+    """Test that tag-release fails if latest commit is not a release PR merge."""
+    version_file = tmp_path / "version.txt"
+    version_file.write_text("v1.2.3\n")
+
+    with patch("contiamo_release_please.release.get_git_root") as mock_git_root, \
+         patch("contiamo_release_please.release.load_config") as mock_config, \
+         patch("contiamo_release_please.release.configure_git_identity"), \
+         patch("contiamo_release_please.release.get_current_branch") as mock_branch, \
+         patch("contiamo_release_please.release.get_latest_commit_message") as mock_commit:
+
+        mock_git_root.return_value = tmp_path
+        mock_config_obj = Mock()
+        mock_config_obj.get_release_branch_name.return_value = "release-please--branches--main"
+        mock_config_obj.get_source_branch.return_value = "main"
+        mock_config_obj.get_git_user_name.return_value = "Test User"
+        mock_config_obj.get_git_user_email.return_value = "test@example.com"
+        mock_config.return_value = mock_config_obj
+        mock_branch.return_value = "main"
+        mock_commit.return_value = "feat: add new feature"  # NOT a release commit
+
+        with pytest.raises(ReleaseError, match="Cannot create release tag: Latest commit is not a release PR merge"):
+            tag_release_workflow()
+
+
+def test_tag_release_workflow_succeeds_on_squash_merge(tmp_path):
+    """Test that tag-release succeeds on squash merge commit."""
+    version_file = tmp_path / "version.txt"
+    version_file.write_text("v1.2.3\n")
+
+    with patch("contiamo_release_please.release.get_git_root") as mock_git_root, \
+         patch("contiamo_release_please.release.load_config") as mock_config, \
+         patch("contiamo_release_please.release.configure_git_identity"), \
+         patch("contiamo_release_please.release.get_current_branch") as mock_branch, \
+         patch("contiamo_release_please.release.get_latest_commit_message") as mock_commit, \
+         patch("contiamo_release_please.release.tag_exists") as mock_tag_exists, \
+         patch("contiamo_release_please.release.create_tag"), \
+         patch("contiamo_release_please.release.push_tag"), \
+         patch("contiamo_release_please.release.detect_git_host") as mock_detect_host:
+
+        mock_git_root.return_value = tmp_path
+        mock_config_obj = Mock()
+        mock_config_obj.get_release_branch_name.return_value = "release-please--branches--main"
+        mock_config_obj.get_source_branch.return_value = "main"
+        mock_config_obj.get_git_user_name.return_value = "Test User"
+        mock_config_obj.get_git_user_email.return_value = "test@example.com"
+        mock_config_obj.get_changelog_path.return_value = "CHANGELOG.md"
+        mock_config_obj.get_version_prefix.return_value = "v"
+        mock_config_obj._config = {}
+        mock_config.return_value = mock_config_obj
+        mock_branch.return_value = "main"
+        mock_commit.return_value = "chore(main): update files for release 1.2.3"  # Squash merge
+        mock_tag_exists.return_value = False
+        mock_detect_host.return_value = None  # Not GitHub
+
+        result = tag_release_workflow()
+
+        assert result["success"] is True
+        assert result["version"] == "v1.2.3"
+
+
+def test_tag_release_workflow_succeeds_on_merge_commit(tmp_path):
+    """Test that tag-release succeeds on merge commit."""
+    version_file = tmp_path / "version.txt"
+    version_file.write_text("v2.0.0\n")
+
+    with patch("contiamo_release_please.release.get_git_root") as mock_git_root, \
+         patch("contiamo_release_please.release.load_config") as mock_config, \
+         patch("contiamo_release_please.release.configure_git_identity"), \
+         patch("contiamo_release_please.release.get_current_branch") as mock_branch, \
+         patch("contiamo_release_please.release.get_latest_commit_message") as mock_commit, \
+         patch("contiamo_release_please.release.tag_exists") as mock_tag_exists, \
+         patch("contiamo_release_please.release.create_tag"), \
+         patch("contiamo_release_please.release.push_tag"), \
+         patch("contiamo_release_please.release.detect_git_host") as mock_detect_host:
+
+        mock_git_root.return_value = tmp_path
+        mock_config_obj = Mock()
+        mock_config_obj.get_release_branch_name.return_value = "release-please--branches--main"
+        mock_config_obj.get_source_branch.return_value = "main"
+        mock_config_obj.get_git_user_name.return_value = "Test User"
+        mock_config_obj.get_git_user_email.return_value = "test@example.com"
+        mock_config_obj.get_changelog_path.return_value = "CHANGELOG.md"
+        mock_config_obj.get_version_prefix.return_value = "v"
+        mock_config_obj._config = {}
+        mock_config.return_value = mock_config_obj
+        mock_branch.return_value = "main"
+        mock_commit.return_value = "Merge branch 'release-please--branches--main' into main"  # Merge commit
+        mock_tag_exists.return_value = False
+        mock_detect_host.return_value = None  # Not GitHub
+
+        result = tag_release_workflow()
+
+        assert result["success"] is True
+        assert result["version"] == "v2.0.0"

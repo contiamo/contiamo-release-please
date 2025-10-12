@@ -156,6 +156,24 @@ def get_commits_since_tag(tag: str | None = None, cwd: Path | None = None) -> li
         raise e
 
 
+def get_latest_commit_message(cwd: Path | None = None) -> str:
+    """Get the latest commit message (subject line).
+
+    Args:
+        cwd: Repository directory (default: git root)
+
+    Returns:
+        Latest commit message
+
+    Raises:
+        GitError: If unable to get commit message
+    """
+    output = _run_git_command(["log", "-1", "--pretty=format:%s"], cwd=cwd)
+    if not output:
+        raise GitError("No commits found in repository")
+    return output
+
+
 def extract_version_from_tag(tag: str) -> str:
     """Extract version number from a git tag.
 
