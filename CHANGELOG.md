@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.4.0] (2025-10-12)
+
+### Features
+
+* Add support for bumping json files
+* Add config generation cmd
+
+### Bug Fixes
+
+* Add a check that prevents tagging a non release commit
+
+### Miscellaneous Changes
+
+* Remove temp. file
+
+### Documentation
+
+* Add generic file bumping config example to readme
+* Add a dedicvated CI Setup doc
+* Update README.md
+
 ## [0.3.1] (2025-10-11)
 
 ### Bug Fixes
