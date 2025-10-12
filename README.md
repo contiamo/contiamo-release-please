@@ -109,7 +109,7 @@ contiamo-release-please generate-changelog --dry-run -v
 
 ### File Version Bumping
 
-Bump version in `pyproject.toml`, Helm charts, or any YAML/TOML file:
+Bump version in `pyproject.toml`, Helm charts, `package.json`, or any YAML/TOML/JSON file. For other text files, use marker comments:
 
 ```yaml
 # contiamo-release-please.yaml
@@ -120,6 +120,16 @@ extra-files:
   - type: yaml
     path: charts/myapp/Chart.yaml
     yaml-path: $.version
+  - type: json
+    path: package.json
+    json-path: $.version
+  - type: generic
+    path: README.md
+    use-prefix: "v"
+    # For generic files, add markers in your file:
+    # <!--- contiamo-release-please-bump-start --->
+    # Version: v1.2.3
+    # <!--- contiamo-release-please-bump-end --->
 ```
 
 ```bash
