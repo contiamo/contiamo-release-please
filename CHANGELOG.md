@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.4.1] (2025-10-13)
+
+### Bug Fixes
+
+* Add a constant with accepted commit messages during release PR merges
+
 ## [0.4.0] (2025-10-12)
 
 ### Features
