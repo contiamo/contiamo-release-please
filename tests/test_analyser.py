@@ -245,3 +245,30 @@ class TestIsReleaseCommit:
         release_branch = "release-please--branches--develop"
 
         assert is_release_commit(commit, release_branch) is True
+
+    def test_pr_title_format(self):
+        """Test detecting PR title format (without 'update files for')."""
+        from contiamo_release_please.analyser import is_release_commit
+
+        commit = "chore(main): release 1.2.3"
+        release_branch = "release-please--branches--main"
+
+        assert is_release_commit(commit, release_branch) is True
+
+    def test_azure_devops_wrapped_merge(self):
+        """Test detecting Azure DevOps wrapped merge commit."""
+        from contiamo_release_please.analyser import is_release_commit
+
+        commit = "Merged PR 10: chore(main): release 0.1.0"
+        release_branch = "release-please--branches--main"
+
+        assert is_release_commit(commit, release_branch) is True
+
+    def test_azure_devops_wrapped_with_update_files(self):
+        """Test detecting Azure DevOps wrapped merge with 'update files for'."""
+        from contiamo_release_please.analyser import is_release_commit
+
+        commit = "Merged PR 42: chore(main): update files for release 2.5.0"
+        release_branch = "release-please--branches--main"
+
+        assert is_release_commit(commit, release_branch) is True

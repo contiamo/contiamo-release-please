@@ -18,6 +18,20 @@ class ParsedCommit(TypedDict):
 # Release type priority (higher index = higher priority)
 RELEASE_TYPE_PRIORITY = ["patch", "minor", "major"]
 
+# Release commit patterns that identify release infrastructure commits
+# These patterns use {release_branch} as a placeholder for dynamic substitution
+RELEASE_COMMIT_PATTERNS = [
+    # Pattern 1: Standard merge commit
+    # Example: "Merge branch 'release-please--branches--main' into main"
+    r"Merge branch '{release_branch}' into",
+    # Pattern 2: Release commits (squash merge, PR title, or Azure DevOps wrapped)
+    # Examples:
+    # - "chore(main): update files for release 1.2.3" (squash merge)
+    # - "chore(main): release 1.2.3" (PR title format)
+    # - "Merged PR 10: chore(main): release 1.2.3" (Azure DevOps)
+    r"^(Merged PR \d+: )?chore\([^)]+\):\s+(update files for )?release",
+]
+
 
 def parse_commit_message(message: str) -> ParsedCommit:
     """Parse a conventional commit message.
@@ -153,14 +167,11 @@ def is_release_commit(commit_message: str, release_branch_name: str) -> bool:
     Returns:
         True if this is a release infrastructure commit, False otherwise
     """
-    # Pattern 1: Merge from release branch (standard merge)
-    # Example: "Merge branch 'release-please--branches--main' into main"
-    if f"Merge branch '{release_branch_name}'" in commit_message:
-        return True
+    for pattern in RELEASE_COMMIT_PATTERNS:
+        # Substitute the release branch name into the pattern
+        resolved_pattern = pattern.replace("{release_branch}", release_branch_name)
 
-    # Pattern 2: Release update commit (squash merge)
-    # Example: "chore(main): update files for release 1.2.3"
-    if re.match(r"^chore\([^)]+\):\s+update files for release", commit_message):
-        return True
+        if re.search(resolved_pattern, commit_message):
+            return True
 
     return False
