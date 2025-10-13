@@ -39,7 +39,7 @@ uv tool install --force git+ssh://git@github.com/contiamo/contiamo-release-pleas
 
 <!--- contiamo-release-please-bump-end --->
 
-## GitHub Actions Example
+## Quick Start Example (GitHub Actions)
 
 ```yaml
 name: Release
@@ -90,6 +90,8 @@ jobs:
       - name: Create and push tag
         run: contiamo-release-please tag-release -v
 ```
+
+**Using Azure Pipelines?** See the [CI/CD Setup Guide](CI_SETUP.md) for a complete Azure Pipelines example.
 
 ## Features
 
@@ -251,6 +253,12 @@ The tool automatically fetches tags from the remote repository before determinin
 - ✅ Reliable behaviour in all environments
 
 **Note:** For CI workflows using `actions/checkout`, we still recommend `fetch-depth: 0` to fetch full commit history for accurate commit analysis.
+
+## Documentation
+
+- **[CI/CD Setup Guide](CI_SETUP.md)** - Comprehensive guide for GitHub Actions, GitLab CI, Azure Pipelines, and other platforms
+- **[Authentication Setup](docs/AUTHENTICATION.md)** - Token configuration for GitHub and Azure DevOps
+- **Configuration** - Run `contiamo-release-please generate-config` to see all available options
 
 ## Requirements
 

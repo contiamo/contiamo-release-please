@@ -80,15 +80,20 @@ contiamo-release-please tag-release --verbose
 
 ## Detecting Release PR Merges
 
-To distinguish between regular commits and release PR merges, check the commit message:
+To distinguish between regular commits and release PR merges, check the commit message. The tool recognises several patterns:
 
-**Release PR merge pattern:**
+**Supported Release PR Merge Patterns:**
 
-```
-chore(main): update files for release X.Y.Z
-```
+1. **Squash merge:** `chore(main): update files for release X.Y.Z`
+2. **PR title:** `chore(main): release X.Y.Z`
+3. **Standard merge:** `Merge branch 'release-please--branches--main' into main`
+4. **Azure DevOps wrapped:** `Merged PR 10: chore(main): release X.Y.Z`
+
+Different git hosting providers may wrap or modify commit messages when merging pull requests. The tool is designed to recognise these variations automatically.
 
 ### Platform-Specific Examples
+
+For CI filtering, use the most common pattern (squash merge format):
 
 **GitHub Actions:**
 
@@ -108,9 +113,11 @@ rules:
 **Azure Pipelines:**
 
 ```yaml
-condition: not(startsWith(variables['Build.SourceVersionMessage'], 'chore(main): update files for release'))  # Job 1
-condition: startsWith(variables['Build.SourceVersionMessage'], 'chore(main): update files for release')      # Job 2
+condition: not(startsWith(variables['Build.SourceVersionMessage'], 'chore(main): release'))  # Job 1
+condition: startsWith(variables['Build.SourceVersionMessage'], 'chore(main): release')      # Job 2
 ```
+
+**Note:** Azure DevOps wraps PR titles with `Merged PR N: `, so the condition checks for the inner pattern.
 
 ## CI Environment Requirements
 
@@ -193,9 +200,89 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
 
+## Reference Implementation (Azure Pipelines)
+
+Here's a complete working example for Azure Pipelines:
+
+```yaml
+variables:
+  - name: IS_RELEASE_PR_MERGE
+    # Azure wraps PR merges with "Merged PR X:", so we check for each part separately
+    # Matches: "Merged PR 10: chore(main): release 0.1.0"
+    value: $[and(contains(variables['Build.SourceVersionMessage'], 'Merged PR'), and(contains(variables['Build.SourceVersionMessage'], 'chore(main)'), contains(variables['Build.SourceVersionMessage'], 'release')))]
+
+trigger:
+  branches:
+    include:
+      - main
+
+pr: none
+
+jobs:
+  # Release PR Creation - runs on pushes to main (except release PR merges)
+  - job: CreateReleasePR
+    displayName: "Create or Update Release PR"
+    condition: and(eq(variables['Build.SourceBranchName'], 'main'), eq(variables['Build.Reason'], 'IndividualCI'), ne(variables['IS_RELEASE_PR_MERGE'], 'True'))
+    steps:
+      - checkout: self
+        fetchDepth: 0 # Required: Fetch all history for commit analysis
+        persistCredentials: true
+        displayName: "Checkout with full history"
+
+      - bash: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          export PATH="$HOME/.local/bin:$PATH"
+          uv python install 3.12
+          uv tool install git+https://github.com/contiamo/contiamo-release-please.git
+        displayName: "Install uv, Python 3.12, and contiamo-release-please"
+
+      - bash: |
+          export PATH="$HOME/.local/bin:$PATH"
+          contiamo-release-please release --verbose
+        displayName: "Create or update release PR"
+        env:
+          AZURE_DEVOPS_TOKEN: $(System.AccessToken)
+
+  # Tag and Release Creation - runs only on release PR merges
+  - job: CreateTagAndRelease
+    displayName: "Create Git Tag and Release"
+    condition: and(eq(variables['Build.SourceBranchName'], 'main'), eq(variables['IS_RELEASE_PR_MERGE'], 'True'))
+    steps:
+      - checkout: self
+        fetchDepth: 0 # Required: Fetch all history for tags
+        persistCredentials: true
+        displayName: "Checkout with full history"
+
+      - bash: |
+          git checkout main
+          git pull origin main
+        displayName: "Ensure we're on main branch"
+
+      - bash: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          export PATH="$HOME/.local/bin:$PATH"
+          uv python install 3.12
+          uv tool install git+https://github.com/contiamo/contiamo-release-please.git
+        displayName: "Install uv, Python 3.12, and contiamo-release-please"
+
+      - bash: |
+          export PATH="$HOME/.local/bin:$PATH"
+          contiamo-release-please tag-release --verbose
+        displayName: "Create and push git tag"
+        env:
+          AZURE_DEVOPS_TOKEN: $(System.AccessToken)
+```
+
+**Key differences from GitHub Actions:**
+
+- **Pattern matching:** Azure DevOps cannot use `:` in conditions, so the IS_RELEASE_PR_MERGE variable uses multiple `contains()` checks
+- **Commit message variable:** Uses `Build.SourceVersionMessage` instead of GitHub's `github.event.head_commit.message`
+- **Authentication:** Uses `$(System.AccessToken)` which is automatically available (no token setup required)
+- **Persist credentials:** Must set `persistCredentials: true` for the tool to push branches and tags
+
 ## Adapting to Other CI Platforms
 
-The reference implementation above follows this pattern that works for any CI platform:
+The reference implementations above (GitHub Actions and Azure Pipelines) follow this pattern that works for any CI platform:
 
 ### Job 1: Release PR Creation
 
@@ -345,6 +432,39 @@ If any check fails, the command exits with an error message explaining what's wr
 - Check that the commit message starts with `chore(main): update files for release`
 - Ensure version.txt exists and contains a valid version
 - Check CI logs for errors
+
+### "Cannot create release tag: Latest commit is not a release PR merge"
+
+This error means the `tag-release` command detected that the latest commit doesn't match any known release PR merge patterns.
+
+**Common causes:**
+
+1. Running `tag-release` before merging the release PR
+2. Running `tag-release` on a non-release commit
+3. Using a git hosting provider with a different merge commit format
+
+**Solution:**
+
+The tool recognises these patterns (defined in `src/contiamo_release_please/analyser.py`):
+
+1. `chore(main): update files for release X.Y.Z` - Squash merge
+2. `chore(main): release X.Y.Z` - PR title format
+3. `Merge branch 'release-please--branches--main' into main` - Standard merge
+4. `Merged PR 10: chore(main): release X.Y.Z` - Azure DevOps
+
+**For new git providers with different formats:**
+
+If your git hosting provider wraps commit messages differently, you can extend the patterns by modifying the `RELEASE_COMMIT_PATTERNS` constant in `src/contiamo_release_please/analyser.py`:
+
+```python
+RELEASE_COMMIT_PATTERNS = [
+    # Existing patterns...
+    # Add your custom pattern here (uses Python regex)
+    r"^Your-Platform-Prefix: chore\([^)]+\):\s+release",
+]
+```
+
+The patterns use `{release_branch}` as a placeholder that gets substituted with your configured release branch name. Submit a PR if you'd like your provider's pattern included by default.
 
 ## Testing Your Setup
 
