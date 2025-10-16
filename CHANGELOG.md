@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.6.0] (2025-10-16)
+
+### Features
+
+* Add completion CMD
+
 ## [0.5.0] (2025-10-16)
 
 ### Features
