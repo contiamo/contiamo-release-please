@@ -55,7 +55,7 @@ tasks:
   install:
     desc: Install the tool globally using uv
     cmds:
-      - uv tool install .
+      - uv tool install --force .
       - echo "✓ Installed globally. Run 'contiamo-release-please' from anywhere."
 
   uninstall:

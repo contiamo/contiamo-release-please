@@ -1,3 +1,8 @@
 """Contiamo Release Please - Automated semantic versioning and release management."""
 
-__version__ = "0.1.0"
+from importlib.metadata import version
+
+try:
+    __version__ = version("contiamo-release-please")
+except Exception:
+    __version__ = "0.0.0-dev"

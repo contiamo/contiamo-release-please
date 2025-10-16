@@ -24,7 +24,10 @@ RELEASE_COMMIT_PATTERNS = [
     # Pattern 1: Standard merge commit
     # Example: "Merge branch 'release-please--branches--main' into main"
     r"Merge branch '{release_branch}' into",
-    # Pattern 2: Release commits (squash merge, PR title, or Azure DevOps wrapped)
+    # Pattern 2: GitHub PR merge commit
+    # Example: "Merge pull request #72 from contiamo/release-please--branches--main"
+    r"Merge pull request #\d+ from [^/]+/{release_branch}",
+    # Pattern 3: Release commits (squash merge, PR title, or Azure DevOps wrapped)
     # Examples:
     # - "chore(main): update files for release 1.2.3" (squash merge)
     # - "chore(main): release 1.2.3" (PR title format)

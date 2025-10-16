@@ -97,13 +97,20 @@ runs:
         echo "release-url=" >> $GITHUB_OUTPUT
         echo "release-type=" >> $GITHUB_OUTPUT
 
-        # Detect which stage to run based on commit message
-        COMMIT_MSG=$(git log -1 --format=%s)
-        echo "Latest commit message: $COMMIT_MSG"
+        # Detect which stage to run based on GitHub PR information
+        COMMIT_SHA="${{ github.sha }}"
+        echo "Checking commit: $COMMIT_SHA"
 
-        # Check if this is a release PR merge
-        if echo "$COMMIT_MSG" | grep -qE "chore\([^)]+\): (update files for )?release|Merge branch 'release-please"; then
-          echo "Detected release PR merge - creating tag and release"
+        # Query GitHub API to get PR info for this commit
+        PR_JSON=$(curl -s \
+          -H "Authorization: token ${{ inputs.token }}" \
+          -H "Accept: application/vnd.github+json" \
+          "https://api.github.com/repos/${{ github.repository }}/commits/$COMMIT_SHA/pulls")
+
+        # Check if this commit came from a release branch
+        # Look for release-please--branches-- pattern in the source branch name
+        if echo "$PR_JSON" | jq -e '.[0].head.ref | test("release-please--branches--")' > /dev/null 2>&1; then
+          echo "Detected release PR merge (from $(echo "$PR_JSON" | jq -r '.[0].head.ref')) - creating tag and release"
           MODE="tag-release"
         else
           echo "Regular push detected - creating/updating release PR"

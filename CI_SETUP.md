@@ -87,7 +87,8 @@ To distinguish between regular commits and release PR merges, check the commit m
 1. **Squash merge:** `chore(main): update files for release X.Y.Z`
 2. **PR title:** `chore(main): release X.Y.Z`
 3. **Standard merge:** `Merge branch 'release-please--branches--main' into main`
-4. **Azure DevOps wrapped:** `Merged PR 10: chore(main): release X.Y.Z`
+4. **GitHub PR merge:** `Merge pull request #72 from contiamo/release-please--branches--main`
+5. **Azure DevOps wrapped:** `Merged PR 10: chore(main): release X.Y.Z`
 
 Different git hosting providers may wrap or modify commit messages when merging pull requests. The tool is designed to recognise these variations automatically.
 

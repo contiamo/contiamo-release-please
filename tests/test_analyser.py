@@ -272,3 +272,21 @@ class TestIsReleaseCommit:
         release_branch = "release-please--branches--main"
 
         assert is_release_commit(commit, release_branch) is True
+
+    def test_github_pr_merge(self):
+        """Test detecting GitHub PR merge commit."""
+        from contiamo_release_please.analyser import is_release_commit
+
+        commit = "Merge pull request #72 from contiamo/release-please--branches--main"
+        release_branch = "release-please--branches--main"
+
+        assert is_release_commit(commit, release_branch) is True
+
+    def test_github_pr_merge_different_org(self):
+        """Test detecting GitHub PR merge from fork or different org."""
+        from contiamo_release_please.analyser import is_release_commit
+
+        commit = "Merge pull request #123 from someorg/release-please--branches--develop"
+        release_branch = "release-please--branches--develop"
+
+        assert is_release_commit(commit, release_branch) is True
