@@ -593,5 +593,113 @@ def completion(shell: str):
     click.echo(complete.source())
 
 
+@cli.command()
+@add_help_option
+@click.option(
+    "--flavour",
+    "-f",
+    type=click.Choice(["github", "azure", "gitlab"], case_sensitive=False),
+    required=True,
+    help="CI/CD platform to bootstrap (github, azure, gitlab)",
+)
+@click.option(
+    "--dry-run",
+    "-d",
+    is_flag=True,
+    help="Show what would be created without actually creating files",
+)
+@click.option(
+    "--verbose",
+    "-v",
+    is_flag=True,
+    help="Show detailed information",
+)
+def bootstrap(flavour: str, dry_run: bool, verbose: bool):
+    """Bootstrap CI/CD workflows and configuration files.
+
+    Creates configuration file and CI/CD workflow files for the specified
+    platform in the current directory. This command sets up everything you
+    need to automate releases using Contiamo Release Please.
+
+    Supported platforms:
+        - github: Creates GitHub Actions workflow
+        - azure: Creates Azure Pipelines workflows
+        - gitlab: Not yet implemented
+
+    Files created:
+        - contiamo-release-please.yaml (configuration)
+        - Platform-specific CI/CD workflow files
+
+    Usage:
+        # Bootstrap GitHub Actions workflow
+        contiamo-release-please bootstrap --flavour github
+
+        # Preview what would be created (dry-run)
+        contiamo-release-please bootstrap --flavour azure --dry-run
+
+        # Verbose output
+        contiamo-release-please bootstrap --flavour github --verbose
+    """
+    from pathlib import Path
+
+    from contiamo_release_please.bootstrap import (
+        bootstrap_flavour,
+        check_existing_files,
+    )
+
+    try:
+        if verbose:
+            click.echo(f"Bootstrapping {flavour} CI/CD workflows...")
+            click.echo(f"Working directory: {Path.cwd()}")
+            if dry_run:
+                click.echo("Dry-run mode: no files will be created")
+            click.echo()
+
+        # Generate files
+        created_files, instructions = bootstrap_flavour(
+            flavour=flavour.lower(), dry_run=dry_run
+        )
+
+        # Check for existing files (before creation in dry-run mode)
+        if dry_run:
+            existing_files = check_existing_files(created_files)
+            if existing_files:
+                click.echo("Warning: The following files already exist and would be overwritten:")
+                for f in existing_files:
+                    click.echo(f"  {f.relative_to(Path.cwd())}")
+                click.echo()
+
+        # Show created files
+        if dry_run:
+            click.echo("Would create the following files:")
+        else:
+            click.echo("Created the following files:")
+
+        for file_path in created_files:
+            relative_path = file_path.relative_to(Path.cwd())
+            if dry_run:
+                status = "would create"
+            elif file_path.exists():
+                status = "✓"
+            else:
+                status = "✗"
+            click.echo(f"  {status} {relative_path}")
+
+        click.echo()
+
+        # Show instructions
+        if not dry_run:
+            click.echo(instructions)
+        else:
+            click.echo("\nRun without --dry-run to create the files.")
+
+    except ValueError as e:
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
+    except Exception as e:
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
+
+
 if __name__ == "__main__":
     cli()
