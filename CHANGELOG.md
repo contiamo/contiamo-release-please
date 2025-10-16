@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.5.0] (2025-10-16)
+
+### Features
+
+* Github Action checks PR JSON to determine which action to run
+* Add Github action
+
+### Documentation
+
+* Add Azure devops example
+
 ## [0.4.1] (2025-10-13)
 
 ### Bug Fixes
