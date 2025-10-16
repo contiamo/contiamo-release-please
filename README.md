@@ -42,7 +42,7 @@ uv tool install --force git+ssh://git@github.com/contiamo/contiamo-release-pleas
 ## Quick Start Example (GitHub Actions)
 
 ```yaml
-name: Release
+name: Release Please
 
 on:
   push:
@@ -50,46 +50,31 @@ on:
       - main
 
 jobs:
-  release-pr:
-    name: Create Release PR
+  release-please:
     runs-on: ubuntu-latest
-    # Run on all pushes EXCEPT release PR merges
-    if: "!startsWith(github.event.head_commit.message, 'chore(main): update files for release')"
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0  # Required: Fetch all history for commit analysis
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@v5
-
-      - name: Install tool
-        run: uv tool install git+ssh://git@github.com/contiamo/contiamo-release-please.git@v0.1.1
-
-      - name: Create release PR
-        run: contiamo-release-please release -v
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  tag-release:
-    name: Create Git Tag
-    runs-on: ubuntu-latest
-    # Run ONLY on release PR merges
-    if: "startsWith(github.event.head_commit.message, 'chore(main): update files for release')"
-    steps:
-      - uses: actions/checkout@v4
+      - uses: contiamo/contiamo-release-please@v1
+        id: release
         with:
-          fetch-depth: 0  # Required: Fetch all history for tags
+          token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@v5
-
-      - name: Install tool
-        run: uv tool install git+ssh://git@github.com/contiamo/contiamo-release-please.git@v0.1.1
-
-      - name: Create and push tag
-        run: contiamo-release-please tag-release -v
+      # Optional: Use outputs for subsequent steps
+      - name: Deploy on new release
+        if: steps.release.outputs.tag-created == 'true'
+        run: |
+          echo "Deploying version ${{ steps.release.outputs.version }}"
+          # Add your deployment commands here
 ```
+
+**How it works:**
+- The action automatically detects whether to create a release PR or create a tag
+- On regular pushes: creates/updates a release PR with version bumps and changelog
+- On release PR merge: creates git tag and GitHub release
+- No need for conditional job logic - the action handles it internally
 
 **Using Azure Pipelines?** See the [CI/CD Setup Guide](CI_SETUP.md) for a complete Azure Pipelines example.
 

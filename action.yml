@@ -1,0 +1,180 @@
+name: "Contiamo Release Please"
+description: "Automated semantic versioning and release management"
+author: "Contiamo"
+
+branding:
+  icon: "git-pull-request"
+  color: "blue"
+
+inputs:
+  token:
+    description: "Authentication token for git provider API (GitHub or Azure DevOps)"
+    required: false
+    default: ${{ github.token }}
+  config-path:
+    description: "Path to configuration file"
+    required: false
+    default: "contiamo-release-please.yaml"
+  tool-version:
+    description: "Version of contiamo-release-please to install (git tag or branch name)"
+    required: false
+    default: "latest"
+
+outputs:
+  release-pr-created:
+    description: "Boolean indicating if a release PR was created or updated"
+    value: ${{ steps.run-tool.outputs.release-pr-created }}
+  release-pr-number:
+    description: "Pull request number (if PR was created)"
+    value: ${{ steps.run-tool.outputs.release-pr-number }}
+  release-pr-url:
+    description: "Pull request URL (if PR was created)"
+    value: ${{ steps.run-tool.outputs.release-pr-url }}
+  tag-created:
+    description: "Boolean indicating if a git tag was created"
+    value: ${{ steps.run-tool.outputs.tag-created }}
+  tag-name:
+    description: "Git tag name that was created (e.g., v1.2.3)"
+    value: ${{ steps.run-tool.outputs.tag-name }}
+  version:
+    description: "Version number (e.g., 1.2.3)"
+    value: ${{ steps.run-tool.outputs.version }}
+  release-url:
+    description: "GitHub release URL (if tag was created on GitHub)"
+    value: ${{ steps.run-tool.outputs.release-url }}
+  release-type:
+    description: "Type of release: major, minor, or patch"
+    value: ${{ steps.run-tool.outputs.release-type }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Install uv
+      uses: astral-sh/setup-uv@v6
+      with:
+        enable-cache: true
+
+    - name: Install Python
+      shell: bash
+      run: uv python install 3.12
+
+    - name: Install contiamo-release-please
+      shell: bash
+      run: |
+        if [ "${{ inputs.tool-version }}" = "latest" ]; then
+          # Get the latest tag from the repository
+          VERSION=$(git ls-remote --tags --refs https://github.com/contiamo/contiamo-release-please.git | \
+                    grep -o 'refs/tags/v[0-9]*\.[0-9]*\.[0-9]*$' | \
+                    sed 's|refs/tags/||' | \
+                    sort -V | \
+                    tail -n1)
+          if [ -z "$VERSION" ]; then
+            echo "Warning: Could not determine latest version, using main branch"
+            VERSION="main"
+          fi
+        else
+          VERSION="${{ inputs.tool-version }}"
+        fi
+
+        echo "Installing contiamo-release-please@${VERSION}"
+        uv tool install "git+https://github.com/contiamo/contiamo-release-please.git@${VERSION}"
+
+    - name: Run contiamo-release-please
+      id: run-tool
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.token }}
+      run: |
+        set -e
+
+        # Initialize outputs with safe defaults
+        echo "release-pr-created=false" >> $GITHUB_OUTPUT
+        echo "release-pr-number=" >> $GITHUB_OUTPUT
+        echo "release-pr-url=" >> $GITHUB_OUTPUT
+        echo "tag-created=false" >> $GITHUB_OUTPUT
+        echo "tag-name=" >> $GITHUB_OUTPUT
+        echo "version=" >> $GITHUB_OUTPUT
+        echo "release-url=" >> $GITHUB_OUTPUT
+        echo "release-type=" >> $GITHUB_OUTPUT
+
+        # Detect which stage to run based on commit message
+        COMMIT_MSG=$(git log -1 --format=%s)
+        echo "Latest commit message: $COMMIT_MSG"
+
+        # Check if this is a release PR merge
+        if echo "$COMMIT_MSG" | grep -qE "chore\([^)]+\): (update files for )?release|Merge branch 'release-please"; then
+          echo "Detected release PR merge - creating tag and release"
+          MODE="tag-release"
+        else
+          echo "Regular push detected - creating/updating release PR"
+          MODE="release"
+        fi
+
+        # Build command
+        CONFIG_ARG=""
+        if [ "${{ inputs.config-path }}" != "contiamo-release-please.yaml" ]; then
+          CONFIG_ARG="--config ${{ inputs.config-path }}"
+        fi
+
+        # Run the appropriate command and capture output
+        OUTPUT_FILE=$(mktemp)
+        if uv run contiamo-release-please "$MODE" --verbose $CONFIG_ARG > "$OUTPUT_FILE" 2>&1; then
+          cat "$OUTPUT_FILE"
+
+          # Parse output based on mode
+          if [ "$MODE" = "tag-release" ]; then
+            # Extract tag information
+            echo "tag-created=true" >> $GITHUB_OUTPUT
+
+            # Try to extract tag name from output
+            TAG_NAME=$(grep -oP "Created tag: \K.*" "$OUTPUT_FILE" || grep -oP "Tag: \K.*" "$OUTPUT_FILE" || echo "")
+            if [ -n "$TAG_NAME" ]; then
+              echo "tag-name=$TAG_NAME" >> $GITHUB_OUTPUT
+              # Extract version (remove 'v' prefix if present)
+              VERSION=$(echo "$TAG_NAME" | sed 's/^v//')
+              echo "version=$VERSION" >> $GITHUB_OUTPUT
+            fi
+
+            # Try to extract release URL
+            RELEASE_URL=$(grep -oP "Release URL: \K.*" "$OUTPUT_FILE" || echo "")
+            if [ -n "$RELEASE_URL" ]; then
+              echo "release-url=$RELEASE_URL" >> $GITHUB_OUTPUT
+            fi
+          else
+            # Extract PR information
+            echo "release-pr-created=true" >> $GITHUB_OUTPUT
+
+            # Try to extract PR number
+            PR_NUMBER=$(grep -oP "Pull request #\K[0-9]+" "$OUTPUT_FILE" || echo "")
+            if [ -n "$PR_NUMBER" ]; then
+              echo "release-pr-number=$PR_NUMBER" >> $GITHUB_OUTPUT
+            fi
+
+            # Try to extract PR URL
+            PR_URL=$(grep -oP "Pull request URL: \K.*" "$OUTPUT_FILE" || grep -oP "https://[^\s]*/pull/[0-9]+" "$OUTPUT_FILE" || echo "")
+            if [ -n "$PR_URL" ]; then
+              echo "release-pr-url=$PR_URL" >> $GITHUB_OUTPUT
+            fi
+
+            # Try to extract version and release type
+            VERSION=$(grep -oP "Next version: \K[v]?[0-9]+\.[0-9]+\.[0-9]+" "$OUTPUT_FILE" || echo "")
+            if [ -n "$VERSION" ]; then
+              VERSION=$(echo "$VERSION" | sed 's/^v//')
+              echo "version=$VERSION" >> $GITHUB_OUTPUT
+            fi
+
+            RELEASE_TYPE=$(grep -oP "Release type: \K(major|minor|patch)" "$OUTPUT_FILE" || echo "")
+            if [ -n "$RELEASE_TYPE" ]; then
+              echo "release-type=$RELEASE_TYPE" >> $GITHUB_OUTPUT
+            fi
+          fi
+
+          rm "$OUTPUT_FILE"
+          exit 0
+        else
+          EXIT_CODE=$?
+          echo "Error: contiamo-release-please failed with exit code $EXIT_CODE"
+          cat "$OUTPUT_FILE"
+          rm "$OUTPUT_FILE"
+          exit $EXIT_CODE
+        fi
