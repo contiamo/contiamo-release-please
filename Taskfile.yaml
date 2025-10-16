@@ -64,6 +64,30 @@ tasks:
       - uv tool uninstall contiamo-release-please
       - echo "✓ Uninstalled globally."
 
+  completion:
+    desc: Generate shell completion scripts
+    silent: true
+    cmds:
+      - |
+        echo "Shell Completion Scripts"
+        echo "========================="
+        echo ""
+        echo "Generate completion scripts for your shell:"
+        echo ""
+        echo "Bash (requires Bash 4.4+):"
+        echo "  contiamo-release-please completion bash > ~/.contiamo-release-please-completion.bash"
+        echo "  echo \". ~/.contiamo-release-please-completion.bash\" >> ~/.bashrc"
+        echo ""
+        echo "Zsh:"
+        echo "  contiamo-release-please completion zsh > ~/.contiamo-release-please-completion.zsh"
+        echo "  echo \". ~/.contiamo-release-please-completion.zsh\" >> ~/.zshrc"
+        echo ""
+        echo "Fish:"
+        echo "  mkdir -p ~/.config/fish/completions"
+        echo "  contiamo-release-please completion fish > ~/.config/fish/completions/contiamo-release-please.fish"
+        echo ""
+        echo "After installation, restart your shell or source the completion script."
+
   help:
     desc: Show usage examples for contiamo-release-please
     silent: true
@@ -105,6 +129,10 @@ tasks:
         echo "  uv run contiamo-release-please tag-release --dry-run --verbose"
         echo "  uv run contiamo-release-please tag-release --config /path/to/config.yaml"
         echo ""
+        echo "Shell Completion:"
+        echo "  contiamo-release-please completion bash|zsh|fish"
+        echo "  See 'task completion' for installation instructions"
+        echo ""
         echo "General Help:"
         echo "  uv run contiamo-release-please --help"
         echo "  uv run contiamo-release-please next-version --help"
@@ -113,3 +141,4 @@ tasks:
         echo "  uv run contiamo-release-please bump-files --help"
         echo "  uv run contiamo-release-please release --help"
         echo "  uv run contiamo-release-please tag-release --help"
+        echo "  uv run contiamo-release-please completion --help"

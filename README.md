@@ -39,6 +39,38 @@ uv tool install --force git+ssh://git@github.com/contiamo/contiamo-release-pleas
 
 <!--- contiamo-release-please-bump-end --->
 
+## Shell Completion
+
+Enable tab completion for commands, options, and arguments in your shell:
+
+**Bash** (requires Bash 4.4+):
+
+```bash
+contiamo-release-please completion bash > ~/.contiamo-release-please-completion.bash
+echo ". ~/.contiamo-release-please-completion.bash" >> ~/.bashrc
+```
+
+**Zsh**:
+
+```bash
+contiamo-release-please completion zsh > ~/.contiamo-release-please-completion.zsh
+echo ". ~/.contiamo-release-please-completion.zsh" >> ~/.zshrc
+```
+
+**Fish**:
+
+```bash
+mkdir -p ~/.config/fish/completions
+contiamo-release-please completion fish > ~/.config/fish/completions/contiamo-release-please.fish
+```
+
+Restart your shell or source the completion script to activate. You can then use `Tab` to complete commands and options:
+
+```bash
+contiamo-release-please <Tab>
+contiamo-release-please release --<Tab>
+```
+
 ## Quick Start Example (GitHub Actions)
 
 ```yaml

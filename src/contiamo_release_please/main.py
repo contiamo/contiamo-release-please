@@ -540,5 +540,58 @@ def generate_config():
     click.echo(template)
 
 
+@cli.command()
+@add_help_option
+@click.argument(
+    "shell",
+    type=click.Choice(["bash", "zsh", "fish"], case_sensitive=False),
+)
+def completion(shell: str):
+    """Generate shell completion script.
+
+    Outputs shell completion script for the specified shell (bash, zsh, or fish).
+    The completion script enables tab completion for commands, options, and arguments.
+
+    Requirements:
+        - Bash: version 4.4 or higher
+        - Zsh: any recent version
+        - Fish: any recent version
+
+    Usage:
+        # Bash - save to file and source in ~/.bashrc
+        contiamo-release-please completion bash > ~/.contiamo-release-please-completion.bash
+        echo ". ~/.contiamo-release-please-completion.bash" >> ~/.bashrc
+
+        # Zsh - save to file and source in ~/.zshrc
+        contiamo-release-please completion zsh > ~/.contiamo-release-please-completion.zsh
+        echo ". ~/.contiamo-release-please-completion.zsh" >> ~/.zshrc
+
+        # Fish - save to completions directory
+        mkdir -p ~/.config/fish/completions
+        contiamo-release-please completion fish > ~/.config/fish/completions/contiamo-release-please.fish
+
+    The completion script will be automatically loaded when you start a new shell session.
+    """
+    from click.shell_completion import BashComplete, FishComplete, ZshComplete
+
+    # Map shell names to Click completion classes
+    shell_map = {
+        "bash": BashComplete,
+        "zsh": ZshComplete,
+        "fish": FishComplete,
+    }
+
+    # Get the completion class
+    completion_class = shell_map[shell.lower()]
+
+    # Create completion instance
+    complete = completion_class(
+        cli=cli, ctx_args={}, prog_name="contiamo-release-please", complete_var="_CONTIAMO_RELEASE_PLEASE_COMPLETE"
+    )
+
+    # Generate and output the completion script
+    click.echo(complete.source())
+
+
 if __name__ == "__main__":
     cli()
