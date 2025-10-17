@@ -327,8 +327,8 @@ def create_release_branch_workflow(
     if determined_git_host is None:
         raise ReleaseError(
             "Could not detect git hosting provider from remote URL. "
-            "Supported providers: github.com, dev.azure.com. "
-            "Use --git-host to specify provider explicitly: --git-host github|azure"
+            "Supported providers: github.com, dev.azure.com, gitlab.com (or custom GitLab instances). "
+            "Use --git-host to specify provider explicitly: --git-host github|azure|gitlab"
         )
 
     # Validate credentials for detected git host (even in dry-run)
@@ -347,6 +347,14 @@ def create_release_branch_workflow(
             get_azure_token(config._config)
         except AzureDevOpsError as e:
             raise ReleaseError(f"Azure DevOps detected but authentication failed: {e}")
+
+    elif determined_git_host.lower() == "gitlab":
+        from contiamo_release_please.gitlab import GitLabError, get_gitlab_token
+
+        try:
+            get_gitlab_token(config._config)
+        except GitLabError as e:
+            raise ReleaseError(f"GitLab detected but authentication failed: {e}")
 
     # Generate changelog entry (needed for both dry-run and actual run)
     grouped_commits = {}
@@ -544,6 +552,52 @@ def create_release_branch_workflow(
 
         except AzureDevOpsError as e:
             raise ReleaseError(f"Azure DevOps PR creation failed: {e}")
+
+    elif determined_git_host.lower() == "gitlab":
+        from contiamo_release_please.gitlab import (
+            GitLabError,
+            create_or_update_pr,
+            get_gitlab_repo_info,
+            get_gitlab_token,
+        )
+
+        try:
+            if verbose:
+                click.echo("\nCreating/updating GitLab merge request...")
+
+            # Get authentication
+            token = get_gitlab_token(config._config)
+
+            # Get repo info
+            host, project_path = get_gitlab_repo_info(git_root)
+
+            # Generate MR title (matching release-please format)
+            pr_title = f"chore({source_branch}): release {next_version}"
+
+            # Use changelog entry as MR body
+            pr_body = changelog_entry
+
+            # Create or update MR
+            mr_data = create_or_update_pr(
+                host=host,
+                project_path=project_path,
+                title=pr_title,
+                body=pr_body,
+                head_branch=release_branch,
+                base_branch=source_branch,
+                token=token,
+                dry_run=dry_run,
+                verbose=verbose,
+            )
+
+            if mr_data:
+                pr_url = mr_data.get("web_url")
+                mr_iid = mr_data.get("iid")
+                click.echo(f"\n✓ Merge request created/updated: !{mr_iid}")
+                click.echo(f"  {pr_url}")
+
+        except GitLabError as e:
+            raise ReleaseError(f"GitLab MR creation failed: {e}")
 
     # Switch back to source branch
     if verbose:
@@ -756,11 +810,77 @@ def tag_release_workflow(
             if verbose:
                 click.echo(f"Warning: Failed to create GitHub release: {e}")
 
+    elif git_host == "gitlab":
+        try:
+            from contiamo_release_please.gitlab import (
+                create_gitlab_release,
+                get_gitlab_repo_info,
+                get_gitlab_token,
+            )
+
+            # Get GitLab credentials
+            token = get_gitlab_token(config._config)
+            host, project_path = get_gitlab_repo_info(git_root)
+
+            # Extract version without prefix for changelog lookup
+            version_prefix = config.get_version_prefix()
+            if version_prefix and version.startswith(version_prefix):
+                version_without_prefix = version[len(version_prefix) :]
+            else:
+                version_without_prefix = version
+
+            # Get changelog content for this version
+            changelog_path = config.get_changelog_path()
+            changelog_file = git_root / changelog_path
+            changelog_body = extract_changelog_for_version(
+                changelog_file, version_without_prefix
+            )
+
+            # If no changelog found, use a simple message
+            if not changelog_body:
+                changelog_body = f"Release {version}"
+
+            if verbose:
+                click.echo(f"\nCreating GitLab release for {version}...")
+
+            # Create GitLab release
+            if not dry_run:
+                release_data = create_gitlab_release(
+                    host=host,
+                    project_path=project_path,
+                    tag_name=version,
+                    release_name=version,
+                    description=changelog_body,
+                    token=token,
+                    dry_run=dry_run,
+                    verbose=verbose,
+                )
+
+                if release_data:
+                    release_url = release_data.get("_links", {}).get("self")
+                    if verbose:
+                        click.echo(f"✓ GitLab release created: {release_url}")
+            else:
+                if verbose:
+                    click.echo(f"Would create GitLab release for tag {version}")
+
+        except Exception as e:
+            # Don't fail the entire workflow if GitLab release creation fails
+            if verbose:
+                click.echo(f"Warning: Failed to create GitLab release: {e}")
+
     # Success message
     click.echo(f"\n✓ Tag created and pushed: {version}")
     click.echo(f"✓ Branch: {current_branch}")
     if release_url:
-        click.echo(f"✓ GitHub release: {release_url}")
+        release_provider = (
+            "GitHub"
+            if git_host == "github"
+            else "GitLab"
+            if git_host == "gitlab"
+            else "Release"
+        )
+        click.echo(f"✓ {release_provider} release: {release_url}")
 
     return {
         "success": True,

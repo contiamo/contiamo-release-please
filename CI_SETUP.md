@@ -49,6 +49,7 @@ Before setting up CI, ensure you have:
 3. **Authentication token** - Required for creating pull requests and releases:
    - **GitHub**: `GITHUB_TOKEN` environment variable
    - **Azure DevOps**: `AZURE_DEVOPS_TOKEN` environment variable
+   - **GitLab**: `GITLAB_TOKEN` environment variable
 
    See [docs/AUTHENTICATION.md](docs/AUTHENTICATION.md) for detailed token setup instructions.
 
@@ -134,8 +135,9 @@ Your CI jobs need:
 3. **Authentication token** as environment variable:
    - `GITHUB_TOKEN` for GitHub
    - `AZURE_DEVOPS_TOKEN` for Azure DevOps
+   - `GITLAB_TOKEN` for GitLab
 
-4. **Write access** to the repository (for creating branches, PRs, and tags)
+4. **Write access** to the repository (for creating branches, PRs/MRs, and tags)
 
 ## Reference Implementation (GitHub Actions)
 
@@ -281,9 +283,86 @@ jobs:
 - **Authentication:** Uses `$(System.AccessToken)` which is automatically available (no token setup required)
 - **Persist credentials:** Must set `persistCredentials: true` for the tool to push branches and tags
 
+## Reference Implementation (GitLab CI)
+
+Here's a complete working example for GitLab CI:
+
+```yaml
+variables:
+  # Fetch full git history for commit analysis
+  GIT_DEPTH: 0
+
+stages:
+  - contiamo-semantic-release
+  - release
+
+# Create or update release MR on pushes to main (excluding release MR merges)
+contiamo-semantic-release:
+  stage: contiamo-semantic-release
+  image: python:3.12-slim
+  before_script:
+    # Install system dependencies
+    - apt-get update && apt-get install -y git curl
+    # Install uv and contiamo-release-please
+    - curl -LsSf https://astral.sh/uv/install.sh | sh
+    - export PATH="$HOME/.cargo/bin:$PATH"
+    - uv tool install git+https://github.com/contiamo/contiamo-release-please.git
+  script:
+    # Configure git identity
+    - git config --global user.email "gitlab-ci@example.com"
+    - git config --global user.name "GitLab CI"
+    # Run release command
+    - export PATH="$HOME/.cargo/bin:$PATH"
+    - contiamo-release-please release --verbose
+  rules:
+    # Run on pushes to main, excluding release MR merges
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_MESSAGE !~ /^chore\(main\): update files for release/'
+      when: always
+
+# Create git tag and GitLab release after merging release MR
+release:
+  stage: release
+  image: python:3.12-slim
+  before_script:
+    # Install system dependencies
+    - apt-get update && apt-get install -y git curl
+    # Install uv and contiamo-release-please
+    - curl -LsSf https://astral.sh/uv/install.sh | sh
+    - export PATH="$HOME/.cargo/bin:$PATH"
+    - uv tool install git+https://github.com/contiamo/contiamo-release-please.git
+  script:
+    # Configure git identity
+    - git config --global user.email "gitlab-ci@example.com"
+    - git config --global user.name "GitLab CI"
+    # Run tag-release command
+    - export PATH="$HOME/.cargo/bin:$PATH"
+    - contiamo-release-please tag-release --verbose
+  rules:
+    # Run ONLY on release MR merges
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_COMMIT_MESSAGE =~ /^chore\(main\): update files for release/'
+      when: always
+```
+
+**Key differences from GitHub Actions:**
+
+- **Git history:** Uses `GIT_DEPTH: 0` variable instead of `fetch-depth: 0`
+- **Commit message variable:** Uses `$CI_COMMIT_MESSAGE` for pattern matching
+- **Branch variable:** Uses `$CI_DEFAULT_BRANCH` for default branch name
+- **Authentication:** Uses `$GITLAB_TOKEN` environment variable (set in CI/CD settings)
+- **Image:** Uses `python:3.12-slim` as base image
+- **Pattern matching:** Uses `=~` for regex matching in rules
+
+**Setting up GitLab Token:**
+
+1. Go to Settings → CI/CD → Variables
+2. Add variable:
+   - Key: `GITLAB_TOKEN`
+   - Value: Your personal access token (with `api` scope)
+   - Flags: Protected (recommended), Masked (recommended)
+
 ## Adapting to Other CI Platforms
 
-The reference implementations above (GitHub Actions and Azure Pipelines) follow this pattern that works for any CI platform:
+The reference implementations above (GitHub Actions, Azure Pipelines, and GitLab CI) follow this pattern that works for any CI platform:
 
 ### Job 1: Release PR Creation
 
@@ -294,7 +373,7 @@ The reference implementations above (GitHub Actions and Azure Pipelines) follow 
    - Install uv package manager
    - Install contiamo-release-please
    - Run `contiamo-release-please release --verbose`
-3. **Environment:** Set `GITHUB_TOKEN` or `AZURE_DEVOPS_TOKEN`
+3. **Environment:** Set `GITHUB_TOKEN`, `AZURE_DEVOPS_TOKEN`, or `GITLAB_TOKEN`
 
 ### Job 2: Tag Creation
 
@@ -305,7 +384,7 @@ The reference implementations above (GitHub Actions and Azure Pipelines) follow 
    - Install uv package manager
    - Install contiamo-release-please
    - Run `contiamo-release-please tag-release --verbose`
-3. **Environment:** Set `GITHUB_TOKEN` or `AZURE_DEVOPS_TOKEN`
+3. **Environment:** Set `GITHUB_TOKEN`, `AZURE_DEVOPS_TOKEN`, or `GITLAB_TOKEN`
 
 ### Platform-Specific Installation Commands
 
@@ -389,10 +468,11 @@ If any check fails, the command exits with an error message explaining what's wr
 - The tool will not create a release PR
 - Push commits using conventional commit format (feat:, fix:, etc.)
 
-### "GitHub token not found" or "Azure DevOps token not found"
+### "GitHub token not found", "Azure DevOps token not found", or "GitLab token not found"
 
-- Ensure `GITHUB_TOKEN` or `AZURE_DEVOPS_TOKEN` is set as an environment variable
+- Ensure `GITHUB_TOKEN`, `AZURE_DEVOPS_TOKEN`, or `GITLAB_TOKEN` is set as an environment variable
 - For GitHub Actions, use `${{ secrets.GITHUB_TOKEN }}` or create a custom token
+- For GitLab CI, add `GITLAB_TOKEN` in Settings → CI/CD → Variables
 - See [docs/AUTHENTICATION.md](docs/AUTHENTICATION.md) for token setup
 
 ### "Permission denied" or "403 Forbidden"
@@ -400,6 +480,7 @@ If any check fails, the command exits with an error message explaining what's wr
 - Your token doesn't have sufficient permissions
 - For GitHub: Token needs `repo` scope (or `public_repo` for public repos)
 - For Azure DevOps: Token needs `Code (Read & Write)` scope
+- For GitLab: Token needs `api` scope
 - See [docs/AUTHENTICATION.md](docs/AUTHENTICATION.md) for required permissions
 
 ### "Failed to create pull request"

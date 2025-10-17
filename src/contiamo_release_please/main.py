@@ -586,7 +586,10 @@ def completion(shell: str):
 
     # Create completion instance
     complete = completion_class(
-        cli=cli, ctx_args={}, prog_name="contiamo-release-please", complete_var="_CONTIAMO_RELEASE_PLEASE_COMPLETE"
+        cli=cli,
+        ctx_args={},
+        prog_name="contiamo-release-please",
+        complete_var="_CONTIAMO_RELEASE_PLEASE_COMPLETE",
     )
 
     # Generate and output the completion script
@@ -657,14 +660,17 @@ def bootstrap(flavour: str, dry_run: bool, verbose: bool):
 
         # Generate files
         created_files, instructions = bootstrap_flavour(
-            flavour=flavour.lower(), dry_run=dry_run
+            flavour=flavour.lower(),  # type: ignore[arg-type]
+            dry_run=dry_run,
         )
 
         # Check for existing files (before creation in dry-run mode)
         if dry_run:
             existing_files = check_existing_files(created_files)
             if existing_files:
-                click.echo("Warning: The following files already exist and would be overwritten:")
+                click.echo(
+                    "Warning: The following files already exist and would be overwritten:"
+                )
                 for f in existing_files:
                     click.echo(f"  {f.relative_to(Path.cwd())}")
                 click.echo()

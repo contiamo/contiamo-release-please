@@ -374,9 +374,9 @@ def detect_git_host(git_root: Path) -> str | None:
         if "dev.azure.com" in remote_url or "visualstudio.com" in remote_url:
             return "azure"
 
-        # Future: GitLab
-        # if "gitlab.com" in remote_url or "gitlab" in remote_url:
-        #     return "gitlab"
+        # Check for GitLab (gitlab.com or custom instances)
+        if "gitlab" in remote_url:
+            return "gitlab"
 
         return None
 

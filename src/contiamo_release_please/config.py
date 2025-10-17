@@ -354,5 +354,22 @@ extra-files: []
 #
 # azure:
 #   token: "xxx"  # Azure DevOps personal access token
+
+# GitLab authentication for merge request creation
+# Type: object with token field
+# Default: none (uses GITLAB_TOKEN environment variable if not specified)
+#
+# To configure:
+# 1. Create a GitLab personal access token at:
+#    Settings → Access Tokens (for gitlab.com)
+#    Or: https://{your-gitlab-instance}/-/profile/personal_access_tokens
+# 2. Required scopes:
+#    - 'api' (full API access)
+# 3. Either set GITLAB_TOKEN environment variable (recommended) or uncomment below:
+#
+# gitlab:
+#   token: "glpat-xxx"  # GitLab personal access token
+#
+# Note: Works with both gitlab.com and self-hosted GitLab instances
 """
     return template

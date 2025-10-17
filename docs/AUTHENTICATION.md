@@ -129,9 +129,79 @@ This will show what would be done without making actual API calls.
 
 ---
 
-## GitLab (Coming Soon)
+## GitLab
 
-Authentication for GitLab will be documented when support is added.
+### Creating a Personal Access Token
+
+1. Go to GitLab Settings → Access Tokens
+   - For gitlab.com: Click your avatar → Preferences → Access Tokens
+   - For self-hosted: `https://{your-gitlab-instance}/-/profile/personal_access_tokens`
+2. Fill in the token details:
+   - **Name**: Give your token a descriptive name (e.g., "contiamo-release-please")
+   - **Expiration date**: Set an expiration date (optional but recommended)
+   - **Select scopes**: Check the `api` scope (Full API access)
+3. Click "Create personal access token"
+4. **Copy the token immediately** - you won't be able to see it again
+
+### Using the Token
+
+There are two ways to provide the GitLab token:
+
+#### Option 1: Environment Variable (Recommended)
+
+Set the `GITLAB_TOKEN` environment variable:
+
+```bash
+export GITLAB_TOKEN="glpat-xxxxxxxxxxxxxxxxxxxx"
+uv run contiamo-release-please release --git-host gitlab
+```
+
+For CI/CD pipelines, add `GITLAB_TOKEN` as a secret variable in your GitLab CI/CD settings.
+
+#### Option 2: Configuration File
+
+Add the token to your `contiamo-release-please.yaml`:
+
+```yaml
+gitlab:
+  token: "glpat-xxxxxxxxxxxxxxxxxxxx"
+```
+
+**⚠️ Warning**: Do not commit tokens to version control. Use environment variables or GitLab CI/CD variables for automation.
+
+### Required Permissions
+
+The token needs:
+- **API scope** - Full API access for creating merge requests and releases
+- **Write access** to the repository
+
+### Supported URL Formats
+
+The tool auto-detects GitLab from these remote URL formats:
+- `https://gitlab.com/owner/repo.git`
+- `https://gitlab.devops.telekom.de/group/subgroup/project.git`
+- `git@gitlab.com:owner/repo.git`
+- `git@gitlab.devops.telekom.de:group/subgroup/project.git`
+
+### Custom GitLab Instances
+
+This tool works with both gitlab.com and self-hosted GitLab instances. The host is automatically detected from your git remote URL.
+
+For self-hosted instances, ensure:
+- Your GitLab instance API is accessible from where the tool runs
+- API endpoint is at `https://{your-gitlab-host}/api/v4`
+- Your token has the required permissions
+
+### Testing Authentication
+
+Test your authentication with a dry-run:
+
+```bash
+export GITLAB_TOKEN="your-token-here"
+uv run contiamo-release-please release --git-host gitlab --dry-run --verbose
+```
+
+This will show what would be done without making actual API calls.
 
 ---
 
@@ -186,3 +256,24 @@ Check your remote URL with:
 ```bash
 git remote get-url origin
 ```
+
+### "GitLab token not found"
+
+Make sure you've either:
+1. Set the `GITLAB_TOKEN` environment variable, OR
+2. Added `gitlab.token` to your config file
+
+### "Could not parse GitLab host/project from remote URL"
+
+Your git remote URL is not in a recognised GitLab format. The tool supports:
+- `https://gitlab.com/owner/repo.git`
+- `https://gitlab.devops.telekom.de/group/subgroup/project.git`
+- `git@gitlab.com:owner/repo.git`
+- `git@gitlab.devops.telekom.de:group/subgroup/project.git`
+
+Check your remote URL with:
+```bash
+git remote get-url origin
+```
+
+Note: The URL must contain "gitlab" in the host name for auto-detection to work.
