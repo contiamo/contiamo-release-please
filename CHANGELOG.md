@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.7.0] (2025-10-17)
+
+### Features
+
+* Add bootstrap command
+
+### Miscellaneous Changes
+
+* Use own github action for releases
+
 ## [0.6.0] (2025-10-16)
 
 ### Features
