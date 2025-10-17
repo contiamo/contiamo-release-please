@@ -1,7 +1,7 @@
 # Contiamo Release Please
 
-It's exactly like Google's Release-Please but for any flavour of git. Not just Github. 
-Provider agnostic Release Please. 
+It's exactly like Google's Release-Please but for any flavour of git. Not just Github.
+Provider agnostic Release Please.
 
 Automated semantic versioning and release management based on conventional commits.
 
@@ -74,7 +74,7 @@ contiamo-release-please release --<Tab>
 ## Quick Start Example (GitHub Actions)
 
 ```yaml
-name: Release Please
+name: Contiamo Release Please
 
 on:
   push:
@@ -87,22 +87,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Required: Fetch all history for commit analysis
+          fetch-depth: 0 # Required: Fetch all history for commit analysis
 
-      - uses: contiamo/contiamo-release-please@v1
+      - uses: contiamo/contiamo-release-please@main
         id: release
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      # Optional: Use outputs for subsequent steps
-      - name: Deploy on new release
-        if: steps.release.outputs.tag-created == 'true'
-        run: |
-          echo "Deploying version ${{ steps.release.outputs.version }}"
-          # Add your deployment commands here
+          token: ${{ secrets.CONTIAMO_CI_TOKEN }}
 ```
 
 **How it works:**
+
 - The action automatically detects whether to create a release PR or create a tag
 - On regular pushes: creates/updates a release PR with version bumps and changelog
 - On release PR merge: creates git tag and GitHub release
@@ -180,6 +174,7 @@ contiamo-release-please tag-release -v
 ```
 
 The GitHub release will include:
+
 - Tag name and release name (e.g., `v1.2.3`)
 - Full changelog entry from `CHANGELOG.md` as the release body
 - Link to the release page
@@ -198,6 +193,7 @@ contiamo-release-please generate-config > contiamo-release-please.yaml
 ```
 
 The generated template includes:
+
 - All required and optional parameters with inline documentation
 - Default values for optional parameters
 - Examples for complex configurations (extra-files, changelog sections, etc.)
@@ -265,6 +261,7 @@ BREAKING CHANGE: This changes the API
 ### Automatic Tag Fetching
 
 The tool automatically fetches tags from the remote repository before determining the next version. This ensures:
+
 - ✅ Correct version calculation even with shallow clones in CI
 - ✅ Up-to-date results in local development without manual `git fetch --tags`
 - ✅ Reliable behaviour in all environments

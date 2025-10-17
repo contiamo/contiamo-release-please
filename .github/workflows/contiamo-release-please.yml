@@ -1,4 +1,4 @@
-name: contiamo-release-please
+name: Contiamo Release Please
 
 on:
   push:
@@ -6,52 +6,14 @@ on:
       - main
 
 jobs:
-  release-pr:
-    name: Create Release PR
+  release-please:
     runs-on: ubuntu-latest
-    # Run on all pushes EXCEPT release PR merges
-    if: "!startsWith(github.event.head_commit.message, 'chore(main): update files for release')"
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # Fetch all history for tags
+          fetch-depth: 0
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@v5
-
-      - name: Set up Python
-        run: uv python install 3.12
-
-      - name: Install dependencies
-        run: uv sync
-
-      - name: Create release PR
-        run: uv run contiamo-release-please release --verbose
-        env:
-          GITHUB_TOKEN: ${{ secrets.CONTIAMO_CI_TOKEN }}
-
-  tag-release:
-    name: Create Git Tag
-    runs-on: ubuntu-latest
-    # Run ONLY on release PR merges
-    if: "startsWith(github.event.head_commit.message, 'chore(main): update files for release')"
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: contiamo/contiamo-release-please@main
+        id: release
         with:
-          fetch-depth: 0 # Fetch all history for tags
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v5
-
-      - name: Set up Python
-        run: uv python install 3.12
-
-      - name: Install dependencies
-        run: uv sync
-
-      - name: Create and push tag
-        run: uv run contiamo-release-please tag-release --verbose
-        env:
-          GITHUB_TOKEN: ${{ secrets.CONTIAMO_CI_TOKEN }}
+          token: ${{ secrets.CONTIAMO_CI_TOKEN }}
