@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.8.1] (2025-10-17)
+
+### Bug Fixes
+
+* allow gitlab as git host
+
 ## [0.8.0] (2025-10-17)
 
 ### Features
