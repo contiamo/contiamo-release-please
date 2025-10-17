@@ -470,7 +470,13 @@ def release(config: str | None, dry_run: bool, verbose: bool, git_host: str | No
     is_flag=True,
     help="Show detailed information about tag creation",
 )
-def tag_release(config: str | None, dry_run: bool, verbose: bool):
+@click.option(
+    "--git-host",
+    "-g",
+    type=click.Choice(["github", "azure", "gitlab"], case_sensitive=False),
+    help="Git hosting provider (github, azure, gitlab). Auto-detected if not specified.",
+)
+def tag_release(config: str | None, dry_run: bool, verbose: bool, git_host: str | None):
     """Create and push git tag for a merged release.
 
     This command should be run after merging a release PR to the source branch.
@@ -491,6 +497,7 @@ def tag_release(config: str | None, dry_run: bool, verbose: bool):
             config_path=config,
             dry_run=dry_run,
             verbose=verbose,
+            git_host=git_host,
         )
 
     except ConfigError as e:

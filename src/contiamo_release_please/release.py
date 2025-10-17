@@ -626,6 +626,7 @@ def tag_release_workflow(
     config_path: str | None = None,
     dry_run: bool = False,
     verbose: bool = False,
+    git_host: str | None = None,
 ) -> dict[str, Any]:
     """Create and push git tag for a merged release.
 
@@ -636,6 +637,7 @@ def tag_release_workflow(
         config_path: Path to config file (optional)
         dry_run: If True, show what would be done without doing it
         verbose: If True, show detailed output
+        git_host: Git hosting provider (optional, auto-detected if not specified)
 
     Returns:
         Dictionary with workflow results
@@ -745,11 +747,13 @@ def tag_release_workflow(
     if verbose:
         click.echo("✓ Tag pushed")
 
-    # Try to create GitHub release if this is a GitHub repository
-    git_host = detect_git_host(git_root)
+    # Determine git host (auto-detect if not explicitly provided)
+    determined_git_host = git_host
+    if not determined_git_host:
+        determined_git_host = detect_git_host(git_root)
     release_url = None
 
-    if git_host == "github":
+    if determined_git_host == "github":
         try:
             from contiamo_release_please.github import (
                 create_github_release,
@@ -810,7 +814,7 @@ def tag_release_workflow(
             if verbose:
                 click.echo(f"Warning: Failed to create GitHub release: {e}")
 
-    elif git_host == "gitlab":
+    elif determined_git_host == "gitlab":
         try:
             from contiamo_release_please.gitlab import (
                 create_gitlab_release,
@@ -875,9 +879,9 @@ def tag_release_workflow(
     if release_url:
         release_provider = (
             "GitHub"
-            if git_host == "github"
+            if determined_git_host == "github"
             else "GitLab"
-            if git_host == "gitlab"
+            if determined_git_host == "gitlab"
             else "Release"
         )
         click.echo(f"✓ {release_provider} release: {release_url}")
