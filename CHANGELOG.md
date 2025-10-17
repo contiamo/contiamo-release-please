@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.8.2] (2025-10-17)
+
+### Bug Fixes
+
+* Add --git-host flag to tag-release command
+
 ## [0.8.1] (2025-10-17)
 
 ### Bug Fixes
