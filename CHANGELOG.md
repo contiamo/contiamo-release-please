@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.8.0] (2025-10-17)
+
+### Features
+
+* Add Gitlab support
+
 ## [0.7.0] (2025-10-17)
 
 ### Features
