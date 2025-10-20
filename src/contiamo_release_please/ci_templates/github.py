@@ -1,6 +1,6 @@
 """GitHub Actions workflow templates for Contiamo Release Please."""
 
-GITHUB_WORKFLOW_TEMPLATE = """name: Release Please
+GITHUB_WORKFLOW_TEMPLATE = """name: Contiamo Release Please
 
 on:
   push:
