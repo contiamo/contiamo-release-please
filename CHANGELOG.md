@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.9.0] (2025-10-20)
+
+### Features
+
+* Add Gitkab support to bootstrap cmd
+
+### Bug Fixes
+
+* Add version prfix to release please config
+* Bootstrap help formatting
+
+### Documentation
+
+* Update Gitlab method docs
+
 ## [0.8.2] (2025-10-17)
 
 ### Bug Fixes
