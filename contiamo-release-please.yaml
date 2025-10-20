@@ -37,7 +37,7 @@ release-rules:
 # Version prefix (e.g., "v" for v1.2.3, "" for 1.2.3)
 # Type: string
 # Default: "" (no prefix)
-version-prefix: ""
+version-prefix: "v"
 
 # Changelog file path
 # Type: string
@@ -123,7 +123,6 @@ extra-files: []
   # <!--- contiamo-release-please-bump-start --->
   # Text containing version like: v1.2.3
   # <!--- contiamo-release-please-bump-end --->
-
 # ============================================================================
 # OPTIONAL CONFIGURATION (no defaults - typically use environment variables)
 # ============================================================================
