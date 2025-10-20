@@ -288,58 +288,57 @@ jobs:
 Here's a complete working example for GitLab CI:
 
 ```yaml
+stages:
+  - release
+
 variables:
+  # Use project access token for API and git push authentication
+  GITLAB_TOKEN: $CICD_TOKEN
   # Fetch full git history for commit analysis
   GIT_DEPTH: 0
 
-stages:
-  - contiamo-semantic-release
-  - release
-
-# Create or update release MR on pushes to main (excluding release MR merges)
-contiamo-semantic-release:
-  stage: contiamo-semantic-release
-  image: python:3.12-slim
+# Create or update release merge request
+create-release-mr:
+  stage: release
+  image: ghcr.io/astral-sh/uv:python3.12-alpine
   before_script:
-    # Install system dependencies
-    - apt-get update && apt-get install -y git curl
-    # Install uv and contiamo-release-please
-    - curl -LsSf https://astral.sh/uv/install.sh | sh
-    - export PATH="$HOME/.cargo/bin:$PATH"
-    - uv tool install git+https://github.com/contiamo/contiamo-release-please.git
+    # Install git (required for cloning the tool and git operations)
+    - apk add --no-cache git
+    # Configure git remote with token authentication for push operations
+    # Uses GitLab CI variables: CI_SERVER_HOST, CI_PROJECT_PATH, and CICD_TOKEN
+    - git remote set-url origin "https://oauth2:${CICD_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git"
   script:
-    # Configure git identity
-    - git config --global user.email "gitlab-ci@example.com"
-    - git config --global user.name "GitLab CI"
-    # Run release command
-    - export PATH="$HOME/.cargo/bin:$PATH"
-    - contiamo-release-please release --verbose
+    # Install contiamo-release-please from GitHub
+    - uv tool install git+https://github.com/contiamo/contiamo-release-please.git
+
+    # Run release workflow (creates/updates MR)
+    - uv tool run contiamo-release-please release --git-host gitlab --verbose
   rules:
-    # Run on pushes to main, excluding release MR merges
-    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_MESSAGE !~ /^chore\(main\): update files for release/'
+    # Run on pushes to main, but not on release MR merges
+    - if: '$CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_MESSAGE !~ /^Merge branch .release-please--branches--main./'
       when: always
 
-# Create git tag and GitLab release after merging release MR
-release:
+# Create git tag and GitLab release
+create-tag-and-release:
   stage: release
-  image: python:3.12-slim
+  image: ghcr.io/astral-sh/uv:python3.12-alpine
   before_script:
-    # Install system dependencies
-    - apt-get update && apt-get install -y git curl
-    # Install uv and contiamo-release-please
-    - curl -LsSf https://astral.sh/uv/install.sh | sh
-    - export PATH="$HOME/.cargo/bin:$PATH"
-    - uv tool install git+https://github.com/contiamo/contiamo-release-please.git
+    # Install git (required for cloning the tool and git operations)
+    - apk add --no-cache git
+    # Checkout the main branch (GitLab CI uses detached HEAD by default)
+    - git checkout -B "$CI_COMMIT_REF_NAME" "$CI_COMMIT_SHA"
+    # Configure git remote with token authentication for push operations
+    # Uses GitLab CI variables: CI_SERVER_HOST, CI_PROJECT_PATH, and CICD_TOKEN
+    - git remote set-url origin "https://oauth2:${CICD_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git"
   script:
-    # Configure git identity
-    - git config --global user.email "gitlab-ci@example.com"
-    - git config --global user.name "GitLab CI"
-    # Run tag-release command
-    - export PATH="$HOME/.cargo/bin:$PATH"
-    - contiamo-release-please tag-release --verbose
+    # Install contiamo-release-please from GitHub
+    - uv tool install git+https://github.com/contiamo/contiamo-release-please.git
+
+    # Create tag and GitLab release
+    - uv tool run contiamo-release-please tag-release --git-host gitlab --verbose
   rules:
-    # Run ONLY on release MR merges
-    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_COMMIT_MESSAGE =~ /^chore\(main\): update files for release/'
+    # Run only when release MR is merged to main
+    - if: '$CI_COMMIT_BRANCH == "main" && $CI_COMMIT_MESSAGE =~ /^Merge branch .release-please--branches--main./'
       when: always
 ```
 
@@ -347,18 +346,41 @@ release:
 
 - **Git history:** Uses `GIT_DEPTH: 0` variable instead of `fetch-depth: 0`
 - **Commit message variable:** Uses `$CI_COMMIT_MESSAGE` for pattern matching
-- **Branch variable:** Uses `$CI_DEFAULT_BRANCH` for default branch name
-- **Authentication:** Uses `$GITLAB_TOKEN` environment variable (set in CI/CD settings)
-- **Image:** Uses `python:3.12-slim` as base image
+- **Branch variable:** Uses `$CI_DEFAULT_BRANCH` or hardcode `"main"`
+- **Authentication:** Uses `$GITLAB_TOKEN` environment variable mapped from `$CICD_TOKEN`
+- **Image:** Uses `ghcr.io/astral-sh/uv:python3.12-alpine` (uv pre-installed, no manual installation needed)
 - **Pattern matching:** Uses `=~` for regex matching in rules
+- **Git remote authentication:** Configures remote URL using built-in CI variables (`CI_SERVER_HOST`, `CI_PROJECT_PATH`) with `oauth2:${CICD_TOKEN}@` for push access - works for gitlab.com and self-hosted instances
+- **Branch checkout:** Tag job explicitly checks out the branch (GitLab CI uses detached HEAD)
+- **Release pattern:** Matches `Merge branch 'release-please--branches--main'` merge commit
 
 **Setting up GitLab Token:**
 
+**Option 1: Project Access Token (Recommended for CI/CD)**
+
+1. Go to Settings → Access Tokens
+2. Click "Add new token"
+3. Fill in details:
+   - **Token name**: `ci-cd-for-this-repo` (or similar)
+   - **Expiration date**: Set expiration (optional but recommended)
+   - **Select a role**: Maintainer (required for creating MRs and pushing tags)
+   - **Select scopes**: `api`, `write_repository`
+4. Click "Create project access token"
+5. Copy the token immediately
+
+Then add to CI/CD variables:
 1. Go to Settings → CI/CD → Variables
 2. Add variable:
-   - Key: `GITLAB_TOKEN`
-   - Value: Your personal access token (with `api` scope)
+   - Key: `CICD_TOKEN`
+   - Value: Your project access token (e.g., `glpat-xxxxxxxxxxxxxxxxxxxx`)
    - Flags: Protected (recommended), Masked (recommended)
+
+**Option 2: Personal Access Token**
+
+1. Create a personal access token with `api` scope (see [docs/AUTHENTICATION.md](docs/AUTHENTICATION.md))
+2. Add to CI/CD variables with key `CICD_TOKEN`
+
+**Note:** The git remote URL is constructed using GitLab's built-in CI variables (`CI_SERVER_HOST` and `CI_PROJECT_PATH`), so it automatically works for any GitLab instance without hardcoding URLs.
 
 ## Adapting to Other CI Platforms
 
@@ -387,16 +409,6 @@ The reference implementations above (GitHub Actions, Azure Pipelines, and GitLab
 3. **Environment:** Set `GITHUB_TOKEN`, `AZURE_DEVOPS_TOKEN`, or `GITLAB_TOKEN`
 
 ### Platform-Specific Installation Commands
-
-**GitLab CI:**
-
-```yaml
-before_script:
-  - apt-get update && apt-get install -y python3 python3-pip git
-  - curl -LsSf https://astral.sh/uv/install.sh | sh
-  - export PATH="$HOME/.cargo/bin:$PATH"
-  - uv tool install git+ssh://git@github.com/contiamo/contiamo-release-please.git@v0.3.1
-```
 
 **Azure Pipelines:**
 
