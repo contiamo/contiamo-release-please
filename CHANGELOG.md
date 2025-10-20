@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.9.1] (2025-10-20)
+
+### Bug Fixes
+
+* Release please config
+
 ## [0.9.0] (2025-10-20)
 
 ### Features
