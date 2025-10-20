@@ -65,7 +65,6 @@ release-rules:
 #   - type: refactor
 #     section: Code Refactoring
 
-# Optional: Extra files to bump version in
 extra-files:
   - type: toml
     path: pyproject.toml
@@ -73,13 +72,3 @@ extra-files:
   - type: generic
     path: README.md
     use-prefix: "v"
-  # - type: yaml
-  #   path: charts/testchart/Chart.yaml
-  #   yaml-path: $.version
-  # - type: yaml
-  #   path: charts/testchart/Chart.yaml
-  #   yaml-path: $.appVersion
-  #   use-prefix: "v"
-  # - type: generic
-  #   path: docs/install.md
-  #   use-prefix: "v"
