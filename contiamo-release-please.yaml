@@ -95,7 +95,13 @@ changelog-sections:
 #   - generic: Any text file (requires marker comments in the file)
 #
 # Examples:
-extra-files: []
+extra-files:
+  - type: toml
+    path: pyproject.toml
+    toml-path: $.project.version
+  - type: generic
+    path: README.md
+    use-prefix: "v"
   # YAML file example (e.g., Helm charts, Kubernetes manifests):
   # - type: yaml
   #   path: charts/myapp/Chart.yaml
