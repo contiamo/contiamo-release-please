@@ -8,6 +8,7 @@ from contiamo_release_please.ci_templates import (
     AZURE_PR_VALIDATION_SCRIPT,
     AZURE_PR_VALIDATION_TEMPLATE,
     GITHUB_WORKFLOW_TEMPLATE,
+    GITLAB_CI_TEMPLATE,
 )
 from contiamo_release_please.config import generate_config_template
 
@@ -63,6 +64,24 @@ def create_azure_pipelines(base_path: Path, dry_run: bool = False) -> list[Path]
         validation_script.chmod(0o755)
 
     return [ci_file, pr_validation_file, validation_script]
+
+
+def create_gitlab_pipelines(base_path: Path, dry_run: bool = False) -> list[Path]:
+    """Create GitLab CI pipeline files.
+
+    Args:
+        base_path: Base directory to create files in
+        dry_run: If True, don't actually write files
+
+    Returns:
+        List of paths that were (or would be) created
+    """
+    ci_file = base_path / ".gitlab-ci.yml"
+
+    if not dry_run:
+        ci_file.write_text(GITLAB_CI_TEMPLATE.strip() + "\n")
+
+    return [ci_file]
 
 
 def create_config_file(base_path: Path, dry_run: bool = False) -> Path:
@@ -174,10 +193,42 @@ For more information, see: CI_SETUP.md
 """
 
     elif flavour == "gitlab":
-        raise ValueError(
-            "GitLab support is not yet implemented. "
-            "Please use 'github' or 'azure' flavour."
-        )
+        pipeline_files = create_gitlab_pipelines(base_path, dry_run)
+        created_files.extend(pipeline_files)
+
+        instructions = """
+Next Steps:
+
+1. Review and customise the generated configuration file:
+   - contiamo-release-please.yaml
+   - Update git.user-name and git.user-email fields
+
+2. Set up GitLab CI/CD variable:
+   - Go to Settings → Access Tokens
+   - Create a new project access token with:
+     * Name: "CICD Token" (or any name you prefer)
+     * Role: Maintainer
+     * Scopes: api, read_api, read_repository, write_repository
+   - Copy the generated token
+   - Go to Settings → CI/CD → Variables
+   - Create a new variable named 'CICD_TOKEN' with the token value
+   - Mark it as "Masked" (recommended for security)
+   - See https://docs.gitlab.com/ee/user/project/settings/project_access_tokens.html
+
+3. Commit the generated files:
+   git add .gitlab-ci.yml contiamo-release-please.yaml
+   git commit -m "chore: add release automation pipeline"
+   git push
+
+4. Configure merge request settings (recommended):
+   - Go to Settings → Merge requests
+   - Enable "Delete source branch" option
+   - Enable "Squash commits when merging" for cleaner history
+
+5. The pipeline will run on the next push to main branch
+
+For more information, see: CI_SETUP.md
+"""
 
     else:
         raise ValueError(

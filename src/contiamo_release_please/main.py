@@ -635,7 +635,7 @@ def bootstrap(flavour: str, dry_run: bool, verbose: bool):
     Supported platforms:
       - github: Creates GitHub Actions workflow
       - azure: Creates Azure Pipelines workflows
-      - gitlab: Not yet implemented
+      - gitlab: Creates GitLab CI pipeline
 
     \b
     Files created:
