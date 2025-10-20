@@ -631,24 +631,31 @@ def bootstrap(flavour: str, dry_run: bool, verbose: bool):
     platform in the current directory. This command sets up everything you
     need to automate releases using Contiamo Release Please.
 
+    \b
     Supported platforms:
-        - github: Creates GitHub Actions workflow
-        - azure: Creates Azure Pipelines workflows
-        - gitlab: Not yet implemented
+      - github: Creates GitHub Actions workflow
+      - azure: Creates Azure Pipelines workflows
+      - gitlab: Not yet implemented
 
+    \b
     Files created:
-        - contiamo-release-please.yaml (configuration)
-        - Platform-specific CI/CD workflow files
+      - contiamo-release-please.yaml (configuration)
+      - Platform-specific CI/CD workflow files
 
-    Usage:
-        # Bootstrap GitHub Actions workflow
-        contiamo-release-please bootstrap --flavour github
+    \b
+    Usage examples:
 
-        # Preview what would be created (dry-run)
-        contiamo-release-please bootstrap --flavour azure --dry-run
+    \b
+      # Bootstrap GitHub Actions workflow
+      $ contiamo-release-please bootstrap --flavour github
 
-        # Verbose output
-        contiamo-release-please bootstrap --flavour github --verbose
+    \b
+      # Preview what would be created (dry-run)
+      $ contiamo-release-please bootstrap --flavour azure --dry-run
+
+    \b
+      # Verbose output
+      $ contiamo-release-please bootstrap --flavour github --verbose
     """
     from pathlib import Path
 
