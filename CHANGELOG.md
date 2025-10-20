@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.9.2] (2025-10-20)
+
+### Bug Fixes
+
+* Rename GitHub Actions workflow template
+
 ## [0.9.1] (2025-10-20)
 
 ### Bug Fixes
