@@ -224,6 +224,14 @@ def generate_changelog(
     Analyses commits since the last git tag, generates a formatted
     changelog entry, and prepends it to the changelog file (CHANGELOG.md
     by default). To see the changelog without writing it to the file add '--dry-run'.
+
+    Generate changelog and update the file:
+
+      contiamo-release-please generate-changelog
+
+    Generate changelog WITHOUT writing it to the file:
+
+      contiamo-release-please generate-changelog --dry-run
     """
     try:
         # Calculate next version using the reusable function
