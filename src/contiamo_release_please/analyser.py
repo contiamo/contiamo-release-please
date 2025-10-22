@@ -45,11 +45,15 @@ def parse_commit_message(message: str) -> ParsedCommit:
     Returns:
         Dictionary with 'type', 'scope', 'breaking', and 'description' keys
     """
+    # Strip Azure DevOps merge commit prefix if present
+    # Example: "Merged PR 527516: ci: add release process" -> "ci: add release process"
+    message = re.sub(r"^Merged PR \d+:\s*", "", message.strip())
+
     # Conventional commit format: type(scope)!: description
     # Breaking change indicators: ! after type/scope, or "BREAKING CHANGE:" in body
     pattern = r"^(?P<type>\w+)(?:\((?P<scope>[^)]+)\))?(?P<breaking>!)?\s*:\s*(?P<description>.+)$"
 
-    match = re.match(pattern, message.strip())
+    match = re.match(pattern, message)
 
     if match:
         return {

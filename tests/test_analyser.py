@@ -70,6 +70,39 @@ class TestParseCommitMessage:
         assert result["type"] == "unknown"
         assert result["breaking"] is False
 
+    def test_azure_devops_merge_commit(self):
+        """Test parsing Azure DevOps merge commit with conventional format."""
+        result = parse_commit_message("Merged PR 527516: ci: add release process")
+        assert result["type"] == "ci"
+        assert result["description"] == "add release process"
+        assert result["scope"] == ""
+        assert result["breaking"] is False
+
+    def test_azure_devops_merge_with_scope(self):
+        """Test parsing Azure DevOps merge commit with scope."""
+        result = parse_commit_message("Merged PR 12345: feat(api): add new endpoint")
+        assert result["type"] == "feat"
+        assert result["scope"] == "api"
+        assert result["description"] == "add new endpoint"
+        assert result["breaking"] is False
+
+    def test_azure_devops_merge_breaking_change(self):
+        """Test parsing Azure DevOps merge commit with breaking change."""
+        result = parse_commit_message("Merged PR 999: feat!: breaking API change")
+        assert result["type"] == "feat"
+        assert result["breaking"] is True
+        assert result["description"] == "breaking API change"
+
+    def test_azure_devops_merge_with_scope_and_breaking(self):
+        """Test parsing Azure DevOps merge commit with scope and breaking change."""
+        result = parse_commit_message(
+            "Merged PR 42: refactor(core)!: rewrite authentication"
+        )
+        assert result["type"] == "refactor"
+        assert result["scope"] == "core"
+        assert result["breaking"] is True
+        assert result["description"] == "rewrite authentication"
+
 
 class TestCheckBreakingChange:
     """Tests for check_breaking_change function."""
