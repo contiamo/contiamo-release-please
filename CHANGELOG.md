@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.10.0] (2025-10-22)
+
+### Features
+
+* Handle Azure's stupid default PR merge commit prefix
+
+### Bug Fixes
+
+* bootstrap help output
+
 ## [0.9.2] (2025-10-20)
 
 ### Bug Fixes
