@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.10.1] (2025-10-22)
+
+### Bug Fixes
+
+* Azure PR title pipeline in bootstrap
+
+### Documentation
+
+* Update help string for generate-changelog
+* Update help string for generate-changelog
+
 ## [0.10.0] (2025-10-22)
 
 ### Features
