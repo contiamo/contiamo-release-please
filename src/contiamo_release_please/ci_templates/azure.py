@@ -76,21 +76,15 @@ jobs:
 """
 
 AZURE_PR_VALIDATION_TEMPLATE = """# Azure DevOps PR Validation Pipeline
-# Runs validation on all pull requests to main branch
-
-trigger: none  # Don't trigger on commits
-
-pr:
-  branches:
-    include:
-      - main
+# Runs validation on all pull requests to main branch via build policy
+trigger: none # Only run via build policy
 
 jobs:
   - job: ValidatePRTitle
-    displayName: 'Validate PR Title'
+    displayName: "Validate PR Title"
     steps:
       - checkout: self
-        displayName: 'Checkout code'
+        displayName: "Checkout code"
 
       - bash: |
           # Install jq for JSON parsing
@@ -99,12 +93,11 @@ jobs:
           else
             apt-get update && apt-get install -y jq
           fi
-        displayName: 'Install jq'
-
+        displayName: "Install jq"
       - bash: |
           # Validate PR title
           .azure/scripts/validate-pr-title.sh
-        displayName: 'Validate PR title format'
+        displayName: "Validate PR title format"
         env:
           SYSTEM_ACCESSTOKEN: $(System.AccessToken)
 """
@@ -113,16 +106,24 @@ AZURE_PR_VALIDATION_SCRIPT = """#!/bin/sh
 set -e
 
 # Check if this is a PR build
-if [ -z "$SYSTEM_PULLREQUEST_PULLEREQUESTNUMBER" ]; then
+if [ -z "$SYSTEM_PULLREQUEST_PULLREQUESTID" ]; then
     echo "✓ Not a pull request pipeline, skipping validation"
     exit 0
 fi
 
 # Get the PR title from Azure DevOps API
 echo "Getting PR title from Azure DevOps API..."
+# Extract repository name from BUILD_REPOSITORY_URI
+# Format: https://org@dev.azure.com/org/project/_git/repo-name
+REPO_NAME=$(echo "$BUILD_REPOSITORY_URI" | sed 's/.*\\/_git\\///')
+
+# Extract project from BUILD_REPOSITORY_URI
+# Format: https://org@dev.azure.com/org/project/_git/repo-name
+PROJECT_NAME=$(echo "$BUILD_REPOSITORY_URI" | sed 's/.*\\.com\\/[^\\/]*\\///; s/\\/_git.*//')
+
 PR_TITLE=$(curl -s \\
     -H "Authorization: Bearer $SYSTEM_ACCESSTOKEN" \\
-    "$SYSTEM_COLLECTIONURI$SYSTEM_TEAMPROJECT/_apis/git/pullrequests/$SYSTEM_PULLREQUEST_PULLEREQUESTNUMBER?api-version=7.0" \\
+    "${SYSTEM_COLLECTIONURI}${PROJECT_NAME}/_apis/git/repositories/${REPO_NAME}/pullrequests/${SYSTEM_PULLREQUEST_PULLREQUESTID}?api-version=7.1" \\
     | jq -r '.title')
 
 if [ -z "$PR_TITLE" ]; then
@@ -153,4 +154,67 @@ else
     echo "  feat!: breaking change in API"
     exit 1
 fi
+"""
+
+AZURE_BRANCH_POLICIES_README = """# Azure DevOps Branch Protection Configuration
+
+## Prerequisites
+
+- Your user should have the "Edit policies" permission in `Project Settings` > `Repos` > `Repositories` > `Security tab`
+- The PR validation pipeline (`.azure/pr-validation.yaml`) must be committed to the repository
+
+## Steps to Configure Branch Policies
+
+### 1. Create the PR Validation Pipeline
+
+Before you can add a build validation policy, you need to create the pipeline in Azure DevOps:
+
+1. Go to your Azure DevOps project
+2. Navigate to **Pipelines** → **Pipelines**
+3. Click **New Pipeline** (or **Create Pipeline**)
+4. Select your repository source
+5. Choose **Existing Azure Pipelines YAML file**
+6. Select the branch (usually `main`)
+7. Select the path: `.azure/pr-validation.yaml`
+8. Click **Continue**
+9. Review the pipeline YAML
+10. Click **Run** to create and validate the pipeline
+11. Once successful, note the pipeline name (you'll need it in the next section)
+
+### 2. Navigate to Branch Policies
+
+1. Go to your Azure DevOps project
+2. Navigate to **Repos** → **Branches**
+3. Find the `main` branch
+4. Click on the three dots (⋮) next to the branch name
+5. Select **Branch policies**
+
+### 3. Configure Required Policies
+
+#### Enable Basic Policies
+
+- ✅ **Require a minimum number of reviewers**: Set to at least 1
+- ✅ **Check for linked work items**: Optional but recommended
+- ✅ **Check for comment resolution**: Enable to ensure all comments are addressed
+- ✅ **Block direct pushes**: Enable "Limit merge types" and allow only pull requests
+
+#### Add Build Validation Policy
+
+1. Under **Build Validation**, click **+ Add build policy**
+2. Select the build pipeline: `pr-validation` (or the name of your PR validation pipeline from step 1)
+3. Configure the policy:
+   - **Display name**: "PR Validation - Title Format"
+   - **Trigger**: Automatic (required)
+   - **Policy requirement**: Required
+   - **Build expiration**: After 12 hours (or your preference)
+4. Click **Save**
+
+### 4. Additional Recommended Policies
+
+#### Automatically Include Reviewers (Optional)
+- Add specific users or groups as automatic reviewers for critical paths
+
+#### Path Filters (Optional)
+- Add specific policies for certain file paths if needed
+
 """

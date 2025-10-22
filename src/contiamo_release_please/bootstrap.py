@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Literal
 
 from contiamo_release_please.ci_templates import (
+    AZURE_BRANCH_POLICIES_README,
     AZURE_CI_TEMPLATE,
     AZURE_PR_VALIDATION_SCRIPT,
     AZURE_PR_VALIDATION_TEMPLATE,
@@ -51,6 +52,7 @@ def create_azure_pipelines(base_path: Path, dry_run: bool = False) -> list[Path]
     ci_file = azure_dir / "ci.yaml"
     pr_validation_file = azure_dir / "pr-validation.yaml"
     validation_script = scripts_dir / "validate-pr-title.sh"
+    readme_file = azure_dir / "README-BRANCH-POLICIES.md"
 
     if not dry_run:
         azure_dir.mkdir(parents=True, exist_ok=True)
@@ -59,11 +61,12 @@ def create_azure_pipelines(base_path: Path, dry_run: bool = False) -> list[Path]
         ci_file.write_text(AZURE_CI_TEMPLATE.strip() + "\n")
         pr_validation_file.write_text(AZURE_PR_VALIDATION_TEMPLATE.strip() + "\n")
         validation_script.write_text(AZURE_PR_VALIDATION_SCRIPT.strip() + "\n")
+        readme_file.write_text(AZURE_BRANCH_POLICIES_README.strip() + "\n")
 
         # Make script executable
         validation_script.chmod(0o755)
 
-    return [ci_file, pr_validation_file, validation_script]
+    return [ci_file, pr_validation_file, validation_script, readme_file]
 
 
 def create_gitlab_pipelines(base_path: Path, dry_run: bool = False) -> list[Path]:
@@ -164,30 +167,29 @@ Next Steps:
 1. Review and customise the generated configuration file:
    - contiamo-release-please.yaml
 
-2. Configure Azure DevOps pipeline:
+2. Configure Azure DevOps CI pipeline:
    - Go to Pipelines → Create Pipeline
    - Select your repository
    - Choose "Existing Azure Pipelines YAML file"
    - Select '.azure/ci.yaml'
+   - Click Continue and Run to create the pipeline
 
-3. Set up PR validation:
-   - Create another pipeline for '.azure/pr-validation.yaml'
-   - Go to Branch Policies for 'main'
-   - Add build validation using the pr-validation pipeline
-   - Enable "Required" and "Build expiration"
-
-4. Grant permissions:
+3. Grant permissions:
    - Go to Project Settings → Repositories → your repository
    - Go to Security tab
    - Find "Build Service" account
    - Grant "Contribute", "Create tag", and "Contribute to pull requests" permissions
 
-5. Commit the generated files:
+4. Commit the generated files:
    git add .azure/ contiamo-release-please.yaml
    git commit -m "chore: add release automation pipelines"
    git push
 
-6. The pipeline will run on the next push to main branch
+5. Set up PR title validation:
+   - See the .azure/README-BRANCH-POLICIES.md file for PR Title Validation setup instructions
+   - This includes creating the PR validation pipeline and configuring branch policies
+
+6. The CI pipeline will run on the next push to main branch
 
 For more information, see: CI_SETUP.md
 """

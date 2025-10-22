@@ -1,6 +1,7 @@
 """CI/CD pipeline templates for various platforms."""
 
 from contiamo_release_please.ci_templates.azure import (
+    AZURE_BRANCH_POLICIES_README,
     AZURE_CI_TEMPLATE,
     AZURE_PR_VALIDATION_SCRIPT,
     AZURE_PR_VALIDATION_TEMPLATE,
@@ -13,5 +14,6 @@ __all__ = [
     "AZURE_CI_TEMPLATE",
     "AZURE_PR_VALIDATION_TEMPLATE",
     "AZURE_PR_VALIDATION_SCRIPT",
+    "AZURE_BRANCH_POLICIES_README",
     "GITLAB_CI_TEMPLATE",
 ]
