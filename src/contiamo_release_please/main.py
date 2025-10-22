@@ -627,35 +627,14 @@ def completion(shell: str):
 def bootstrap(flavour: str, dry_run: bool, verbose: bool):
     """Bootstrap CI/CD workflows and configuration files.
 
-    Creates configuration file and CI/CD workflow files for the specified
-    platform in the current directory. This command sets up everything you
-    need to automate releases using Contiamo Release Please.
+    Creates the configuration file and platform-specific CI/CD workflow files
+    needed to automate releases. Supports GitHub Actions, Azure Pipelines, and GitLab CI.
 
     \b
-    Supported platforms:
-      - github: Creates GitHub Actions workflow
-      - azure: Creates Azure Pipelines workflows
-      - gitlab: Creates GitLab CI pipeline
-
-    \b
-    Files created:
-      - contiamo-release-please.yaml (configuration)
-      - Platform-specific CI/CD workflow files
-
-    \b
-    Usage examples:
-
-    \b
-      # Bootstrap GitHub Actions workflow
-      $ contiamo-release-please bootstrap --flavour github
-
-    \b
-      # Preview what would be created (dry-run)
-      $ contiamo-release-please bootstrap --flavour azure --dry-run
-
-    \b
-      # Verbose output
-      $ contiamo-release-please bootstrap --flavour github --verbose
+    Examples:
+      bootstrap -f github              Create GitHub Actions workflow
+      bootstrap -f azure --dry-run     Preview Azure Pipelines files
+      bootstrap -f gitlab --verbose    Create GitLab CI with detailed output
     """
     from pathlib import Path
 
