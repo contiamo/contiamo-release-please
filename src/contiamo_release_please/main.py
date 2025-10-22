@@ -219,10 +219,11 @@ def next_version(config: str | None, verbose: bool):
 def generate_changelog(
     config: str | None, output: str | None, dry_run: bool, verbose: bool
 ):
-    """Generate changelog entry for the next release.
+    """Generate and prepend changelog entry to the changelog file.
 
-    Analyses commits since the last git tag and generates a formatted
-    changelog entry based on conventional commit types.
+    Analyses commits since the last git tag, generates a formatted
+    changelog entry, and prepends it to the changelog file (CHANGELOG.md
+    by default). To see the changelog without writing it to the file add '--dry-run'.
     """
     try:
         # Calculate next version using the reusable function
