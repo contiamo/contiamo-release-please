@@ -28,13 +28,13 @@ contiamo-release-please tag-release -v
 Install using uv:
 
 ```bash
-uv tool install git+ssh://git@github.com/contiamo/contiamo-release-please.git@v0.10.2
+uv tool install git+ssh://git@github.com/contiamo/contiamo-release-please.git@v0.10.3
 ```
 
 To upgrade to a specific version, use the `--force` flag:
 
 ```bash
-uv tool install --force git+ssh://git@github.com/contiamo/contiamo-release-please.git@v0.10.2
+uv tool install --force git+ssh://git@github.com/contiamo/contiamo-release-please.git@v0.10.3
 ```
 
 <!--- contiamo-release-please-bump-end --->
@@ -141,7 +141,7 @@ extra-files:
     use-prefix: "v"
     # For generic files, add markers in your file:
     # <!--- contiamo-release-please-bump-start --->
-    # Version: v0.10.2
+    # Version: v0.10.3
     # <!--- contiamo-release-please-bump-end --->
 ```
 

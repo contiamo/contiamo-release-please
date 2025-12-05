@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.10.3] (2025-12-05)
+
+### Bug Fixes
+
+* Bump checkout action version in template
+
 ## [0.10.2] (2025-12-05)
 
 ### Miscellaneous Changes
