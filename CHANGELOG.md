@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.10.2] (2025-12-05)
+
+### Miscellaneous Changes
+
+* Move completions to its own file
+
 ## [0.10.1] (2025-10-22)
 
 ### Bug Fixes
