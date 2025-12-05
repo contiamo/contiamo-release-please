@@ -11,7 +11,7 @@ jobs:
   contiamo-release-please:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0 # Required: Fetch all history for commit analysis
 
