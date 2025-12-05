@@ -550,7 +550,7 @@ def generate_config():
         # Edit my-config.yaml to customise
         contiamo-release-please release -c my-config.yaml
     """
-    from contiamo_release_please.config import generate_config_template
+    from contiamo_release_please.ci_templates import generate_config_template
 
     template = generate_config_template()
     click.echo(template)
@@ -568,48 +568,41 @@ def completion(shell: str):
     Outputs shell completion script for the specified shell (bash, zsh, or fish).
     The completion script enables tab completion for commands, options, and arguments.
 
+    \b
     Requirements:
-        - Bash: version 4.4 or higher
-        - Zsh: any recent version
-        - Fish: any recent version
+      - Bash: version 4.4 or higher
+      - Zsh: any recent version
+      - Fish: any recent version
 
+    \b
     Usage:
-        # Bash - save to file and source in ~/.bashrc
-        contiamo-release-please completion bash > ~/.contiamo-release-please-completion.bash
-        echo ". ~/.contiamo-release-please-completion.bash" >> ~/.bashrc
+    ########################## Bash #############################
 
-        # Zsh - save to file and source in ~/.zshrc
-        contiamo-release-please completion zsh > ~/.contiamo-release-please-completion.zsh
-        echo ". ~/.contiamo-release-please-completion.zsh" >> ~/.zshrc
+    contiamo-release-please completion bash > ~/.bash_completions/rls-pls.bash
 
-        # Fish - save to completions directory
-        mkdir -p ~/.config/fish/completions
-        contiamo-release-please completion fish > ~/.config/fish/completions/contiamo-release-please.fish
+    echo ". ~/.bash_completions/rls-pls.bash" >> ~/.bash_profile
+
+
+    ########################## Zsh #############################
+
+    contiamo-release-please completion zsh > ~/.rls-pls.zsh
+
+    echo ". ~/.rls-pls.zsh" >> ~/.zshrc
+
+
+    ########################## Fish #############################
+
+    mkdir -p ~/.config/fish/completions
+
+    contiamo-release-please completion fish > ~/.config/fish/completions/contiamo-release-please.fish
 
     The completion script will be automatically loaded when you start a new shell session.
     """
-    from click.shell_completion import BashComplete, FishComplete, ZshComplete
-
-    # Map shell names to Click completion classes
-    shell_map = {
-        "bash": BashComplete,
-        "zsh": ZshComplete,
-        "fish": FishComplete,
-    }
-
-    # Get the completion class
-    completion_class = shell_map[shell.lower()]
-
-    # Create completion instance
-    complete = completion_class(
-        cli=cli,
-        ctx_args={},
-        prog_name="contiamo-release-please",
-        complete_var="_CONTIAMO_RELEASE_PLEASE_COMPLETE",
-    )
+    from contiamo_release_please.shell_completion import generate_completion_script
 
     # Generate and output the completion script
-    click.echo(complete.source())
+    completion_script = generate_completion_script(cli, shell)
+    click.echo(completion_script)
 
 
 @cli.command()

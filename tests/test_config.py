@@ -6,10 +6,8 @@ from pathlib import Path
 import pytest
 import yaml
 
-from contiamo_release_please.config import (
-    ReleaseConfig,
-    generate_config_template,
-)
+from contiamo_release_please.ci_templates import generate_config_template
+from contiamo_release_please.config import ReleaseConfig
 
 
 def test_generate_config_template_returns_string():
@@ -64,8 +62,8 @@ def test_generate_config_template_shows_default_values():
     template = generate_config_template()
     config_dict = yaml.safe_load(template)
 
-    # Verify default values match those in ReleaseConfig
-    assert config_dict["version-prefix"] == ""
+    # Verify template values (note: version-prefix is "v" in template as recommended value)
+    assert config_dict["version-prefix"] == "v"
     assert config_dict["changelog-path"] == "CHANGELOG.md"
     assert config_dict["source-branch"] == "main"
     assert config_dict["git"]["user-name"] == "Contiamo Release Bot"
@@ -150,9 +148,9 @@ def test_generated_config_can_be_loaded():
         # Load the config - this should not raise any errors
         config = ReleaseConfig(temp_file_path)
 
-        # Verify it loaded correctly
+        # Verify it loaded correctly (template has "v" as recommended value)
         assert config is not None
-        assert config.get_version_prefix() == ""
+        assert config.get_version_prefix() == "v"
         assert config.get_changelog_path() == "CHANGELOG.md"
         assert config.get_source_branch() == "main"
 

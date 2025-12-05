@@ -40,8 +40,8 @@ extend-safe-fixes = ["F601"]
 [tool.ruff.lint.isort]
 combine-as-imports = true
 
-[tool.uv]
-dev-dependencies = [
+[dependency-groups]
+dev = [
     "pyright>=1.1.377",
     "ruff>=0.6.2",
     "pytest>=8.3.2",

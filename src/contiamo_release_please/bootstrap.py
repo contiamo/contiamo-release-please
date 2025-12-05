@@ -10,8 +10,8 @@ from contiamo_release_please.ci_templates import (
     AZURE_PR_VALIDATION_TEMPLATE,
     GITHUB_WORKFLOW_TEMPLATE,
     GITLAB_CI_TEMPLATE,
+    generate_config_template,
 )
-from contiamo_release_please.config import generate_config_template
 
 Flavour = Literal["github", "azure", "gitlab"]
 
