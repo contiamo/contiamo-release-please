@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.4] (2026-02-26)
+
+### Bug Fixes
+
+* deduplicate grep matches when parsing tool output
+* Match grep patterns to actual tool output in action.yml
+
 ## [0.10.3] (2025-12-05)
 
 ### Bug Fixes
