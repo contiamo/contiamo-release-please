@@ -134,7 +134,7 @@ runs:
             echo "tag-created=true" >> $GITHUB_OUTPUT
 
             # Try to extract tag name from output
-            TAG_NAME=$(grep -oP "Created tag: \K.*" "$OUTPUT_FILE" || grep -oP "Tag: \K.*" "$OUTPUT_FILE" || echo "")
+            TAG_NAME=$(grep -oP "Tag created and pushed: \K.*" "$OUTPUT_FILE" || grep -oP "Created tag: \K.*" "$OUTPUT_FILE" || echo "")
             if [ -n "$TAG_NAME" ]; then
               echo "tag-name=$TAG_NAME" >> $GITHUB_OUTPUT
               # Extract version (remove 'v' prefix if present)
@@ -143,7 +143,7 @@ runs:
             fi
 
             # Try to extract release URL
-            RELEASE_URL=$(grep -oP "Release URL: \K.*" "$OUTPUT_FILE" || echo "")
+            RELEASE_URL=$(grep -oP "(GitHub|GitLab) release.*: \K.*" "$OUTPUT_FILE" || grep -oP "Release URL: \K.*" "$OUTPUT_FILE" || echo "")
             if [ -n "$RELEASE_URL" ]; then
               echo "release-url=$RELEASE_URL" >> $GITHUB_OUTPUT
             fi
@@ -152,13 +152,13 @@ runs:
             echo "release-pr-created=true" >> $GITHUB_OUTPUT
 
             # Try to extract PR number
-            PR_NUMBER=$(grep -oP "Pull request #\K[0-9]+" "$OUTPUT_FILE" || echo "")
+            PR_NUMBER=$(grep -oP "Pull request created/updated: #\K[0-9]+" "$OUTPUT_FILE" || grep -oP "Pull request #\K[0-9]+" "$OUTPUT_FILE" || echo "")
             if [ -n "$PR_NUMBER" ]; then
               echo "release-pr-number=$PR_NUMBER" >> $GITHUB_OUTPUT
             fi
 
-            # Try to extract PR URL
-            PR_URL=$(grep -oP "Pull request URL: \K.*" "$OUTPUT_FILE" || grep -oP "https://[^\s]*/pull/[0-9]+" "$OUTPUT_FILE" || echo "")
+            # Try to extract PR URL (printed on the line after the PR number)
+            PR_URL=$(grep -oP "https://[^ ]*/pull/[0-9]+" "$OUTPUT_FILE" || echo "")
             if [ -n "$PR_URL" ]; then
               echo "release-pr-url=$PR_URL" >> $GITHUB_OUTPUT
             fi
