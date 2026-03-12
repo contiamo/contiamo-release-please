@@ -22,8 +22,10 @@ from contiamo_release_please.config import load_config
 from contiamo_release_please.git import (
     checkout_branch,
     configure_git_identity,
+    create_lightweight_tag,
     create_tag,
     detect_git_host,
+    force_push_tag,
     get_commits_since_tag,
     get_current_branch,
     get_git_root,
@@ -275,7 +277,7 @@ def create_release_branch_workflow(
     extra_files = config.get_extra_files()
 
     # Determine next version
-    latest_tag = get_latest_tag(git_root)
+    latest_tag = get_latest_tag(git_root, version_prefix=version_prefix)
     if latest_tag:
         # parse_version returns Version object, convert to string
         current_version_obj = parse_version(latest_tag)
@@ -873,9 +875,36 @@ def tag_release_workflow(
             if verbose:
                 click.echo(f"Warning: Failed to create GitLab release: {e}")
 
+    # Update major version tag if configured
+    major_version_tag = None
+    if config.get_update_major_version_tag():
+        version_prefix = config.get_version_prefix()
+        # Strip prefix to get bare version, then extract major component
+        bare_version = version
+        if version_prefix and version.startswith(version_prefix):
+            bare_version = version[len(version_prefix) :]
+
+        parts = bare_version.split(".")
+        if len(parts) >= 1:
+            major_version_tag = f"{version_prefix}{parts[0]}"
+
+            if verbose or dry_run:
+                click.echo(
+                    f"\nUpdating major version tag '{major_version_tag}' → {version}"
+                )
+
+            if not dry_run:
+                create_lightweight_tag(major_version_tag, version, git_root)
+                force_push_tag(major_version_tag, git_root)
+
+                if verbose:
+                    click.echo(f"✓ Major version tag '{major_version_tag}' updated")
+
     # Success message
     click.echo(f"\n✓ Tag created and pushed: {version}")
     click.echo(f"✓ Branch: {current_branch}")
+    if major_version_tag:
+        click.echo(f"✓ Major version tag updated: {major_version_tag}")
     if release_url:
         release_provider = (
             "GitHub"
@@ -891,4 +920,5 @@ def tag_release_workflow(
         "version": version,
         "current_branch": current_branch,
         "release_url": release_url,
+        "major_version_tag": major_version_tag,
     }

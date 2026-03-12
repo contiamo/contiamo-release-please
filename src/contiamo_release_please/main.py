@@ -63,8 +63,9 @@ def calculate_next_version(config_path: str | None = None) -> dict[str, Any]:
     # Load configuration
     release_config = load_config(config_path)
 
-    # Get latest tag
-    latest_tag = get_latest_tag()
+    # Get latest tag (use configured prefix to filter for semver tags only)
+    version_prefix = release_config.get_version_prefix()
+    latest_tag = get_latest_tag(version_prefix=version_prefix)
 
     if latest_tag:
         current_version = extract_version_from_tag(latest_tag)
