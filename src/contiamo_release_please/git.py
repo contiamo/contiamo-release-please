@@ -117,15 +117,20 @@ def get_latest_tag(
         pass
 
     try:
-        # Build match pattern from configured prefix to only match semver tags.
+        # Build match patterns to only match semver-shaped tags.
         # This prevents non-semver tags like 'v1' or 'latest' from being picked up
         # (e.g., GitHub Actions major version tags).
-        match_pattern = f"{version_prefix}[0-9]*.[0-9]*.[0-9]*"
+        # We always include 'v' prefix pattern as a fallback since it's the most
+        # common convention, even if the configured prefix differs.
+        match_args = [
+            "--match", f"{version_prefix}[0-9]*.[0-9]*.[0-9]*",
+            "--match", "v[0-9]*.[0-9]*.[0-9]*",
+        ]
 
         # Get the latest tag reachable from HEAD
         # --abbrev=0 shows only the tag name without commit info
         output = _run_git_command(
-            ["describe", "--tags", "--abbrev=0", "--match", match_pattern],
+            ["describe", "--tags", "--abbrev=0"] + match_args,
             cwd=cwd,
         )
         return output if output else None
