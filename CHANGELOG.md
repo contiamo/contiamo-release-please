@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.11.0] (2026-03-12)
+
+### Features
+
+* add update-major-version-tag config and fix non-semver tag handling (#27)
+
+### Bug Fixes
+
+* deduplicate grep matches when parsing tool output
+* Match grep patterns to actual tool output in action.yml
+
 ## [0.10.3] (2025-12-05)
 
 ### Bug Fixes
