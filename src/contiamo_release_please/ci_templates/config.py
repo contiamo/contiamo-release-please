@@ -93,6 +93,17 @@ changelog-sections:
   - type: refactor
     section: Code Refactoring
 
+# Automatically update the major version tag when a release is created
+# Type: boolean
+# Default: false
+#
+# When enabled, creating tag 'v1.3.0' will also force-update the 'v1' tag
+# to point to the same commit. This is useful for GitHub Actions, where
+# consumers reference actions by major version (e.g., uses: my-org/my-action@v1).
+# The major version tag is a lightweight tag, following GitHub convention.
+# Uncomment to enable:
+# update-major-version-tag: true
+
 # Extra files to bump version in (beyond the changelog)
 # Type: list of file configuration objects
 # Default: [] (empty list)

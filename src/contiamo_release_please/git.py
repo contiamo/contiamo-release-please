@@ -72,15 +72,22 @@ def _run_git_command(args: list[str], cwd: Path | str | None = None) -> str:
         raise GitError("Git not found. Please ensure git is installed.")
 
 
-def get_latest_tag(cwd: Path | None = None) -> str | None:
-    """Get the latest git tag reachable from the current branch.
+def get_latest_tag(
+    cwd: Path | None = None, version_prefix: str = ""
+) -> str | None:
+    """Get the latest semver git tag reachable from the current branch.
 
     Automatically fetches tags from remote to ensure up-to-date results.
     This is important for CI environments with shallow clones and local
     development where tags may not have been pulled recently.
 
+    Uses --match to filter for semver-shaped tags only, preventing
+    non-semver tags (e.g., 'v1', 'latest') from being picked up.
+    The match pattern is built from the configured version prefix.
+
     Args:
         cwd: Repository directory (default: git root)
+        version_prefix: Version prefix from config (e.g., 'v', 'version-', or '')
 
     Returns:
         Latest tag string (e.g., 'v1.2.3' or '1.2.3') or None if no tags exist
@@ -110,9 +117,17 @@ def get_latest_tag(cwd: Path | None = None) -> str | None:
         pass
 
     try:
+        # Build match pattern from configured prefix to only match semver tags.
+        # This prevents non-semver tags like 'v1' or 'latest' from being picked up
+        # (e.g., GitHub Actions major version tags).
+        match_pattern = f"{version_prefix}[0-9]*.[0-9]*.[0-9]*"
+
         # Get the latest tag reachable from HEAD
         # --abbrev=0 shows only the tag name without commit info
-        output = _run_git_command(["describe", "--tags", "--abbrev=0"], cwd=cwd)
+        output = _run_git_command(
+            ["describe", "--tags", "--abbrev=0", "--match", match_pattern],
+            cwd=cwd,
+        )
         return output if output else None
     except GitError:
         # No tags exist yet or no tags reachable from HEAD
@@ -272,6 +287,54 @@ def create_tag(tag_name: str, message: str, git_root: Path) -> None:
     except subprocess.CalledProcessError as e:
         stderr = e.stderr.decode().strip() if e.stderr else ""
         raise GitError(f"Failed to create tag '{tag_name}': {stderr}")
+
+
+def create_lightweight_tag(tag_name: str, target: str, git_root: Path) -> None:
+    """Create or move a lightweight git tag (force).
+
+    Lightweight tags are used for major version pointers (e.g., 'v1')
+    following the GitHub Actions convention.
+
+    Args:
+        tag_name: Name of the tag (e.g., 'v1')
+        target: Target ref to point the tag at (e.g., 'v1.2.3')
+        git_root: Git repository root path
+
+    Raises:
+        GitError: If tag creation fails
+    """
+    try:
+        subprocess.run(
+            ["git", "tag", "-f", tag_name, target],
+            cwd=git_root,
+            check=True,
+            capture_output=True,
+        )
+    except subprocess.CalledProcessError as e:
+        stderr = e.stderr.decode().strip() if e.stderr else ""
+        raise GitError(f"Failed to create lightweight tag '{tag_name}': {stderr}")
+
+
+def force_push_tag(tag_name: str, git_root: Path) -> None:
+    """Force-push a git tag to remote origin.
+
+    Args:
+        tag_name: Name of the tag to push
+        git_root: Git repository root path
+
+    Raises:
+        GitError: If tag push fails
+    """
+    try:
+        subprocess.run(
+            ["git", "push", "-f", "origin", tag_name],
+            cwd=git_root,
+            check=True,
+            capture_output=True,
+        )
+    except subprocess.CalledProcessError as e:
+        stderr = e.stderr.decode().strip() if e.stderr else ""
+        raise GitError(f"Failed to force-push tag '{tag_name}': {stderr}")
 
 
 def push_tag(tag_name: str, git_root: Path) -> None:

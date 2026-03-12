@@ -154,6 +154,18 @@ class ReleaseConfig:
         source_branch = self.get_source_branch()
         return f"release-please--branches--{source_branch}"
 
+    def get_update_major_version_tag(self) -> bool:
+        """Get whether to automatically update the major version tag on release.
+
+        When enabled, creating tag 'v1.3.0' will also force-update
+        the 'v1' tag to point to the same commit. This follows the
+        GitHub Actions convention for major version tags.
+
+        Returns:
+            True if major version tag should be updated, False otherwise
+        """
+        return bool(self._config.get("update-major-version-tag", False))
+
     def get_git_user_name(self) -> str:
         """Get git user name for commits.
 

@@ -510,6 +510,7 @@ def test_tag_release_workflow_success(tmp_path):
         )
         mock_config_obj.get_git_user_name.return_value = "Test User"
         mock_config_obj.get_git_user_email.return_value = "test@example.com"
+        mock_config_obj.get_update_major_version_tag.return_value = False
         mock_config.return_value = mock_config_obj
         mock_branch.return_value = "main"
         mock_commit.return_value = "chore(main): update files for release 1.2.3"
@@ -659,6 +660,7 @@ def test_tag_release_workflow_dry_run(tmp_path):
         )
         mock_config_obj.get_git_user_name.return_value = "Test User"
         mock_config_obj.get_git_user_email.return_value = "test@example.com"
+        mock_config_obj.get_update_major_version_tag.return_value = False
         mock_config.return_value = mock_config_obj
         mock_branch.return_value = "main"
         mock_commit.return_value = "chore(main): update files for release 1.2.3"
@@ -721,6 +723,7 @@ def test_tag_release_workflow_creates_github_release(tmp_path):
         mock_config_obj.get_git_user_email.return_value = "test@example.com"
         mock_config_obj.get_changelog_path.return_value = "CHANGELOG.md"
         mock_config_obj.get_version_prefix.return_value = "v"  # Default prefix
+        mock_config_obj.get_update_major_version_tag.return_value = False
         mock_config_obj._config = {}
         mock_config.return_value = mock_config_obj
         mock_branch.return_value = "main"
@@ -777,6 +780,7 @@ def test_tag_release_workflow_non_github_skips_release(tmp_path):
         )
         mock_config_obj.get_git_user_name.return_value = "Test User"
         mock_config_obj.get_git_user_email.return_value = "test@example.com"
+        mock_config_obj.get_update_major_version_tag.return_value = False
         mock_config.return_value = mock_config_obj
         mock_branch.return_value = "main"
         mock_commit.return_value = "chore(main): update files for release 1.2.3"
@@ -820,6 +824,7 @@ def test_tag_release_workflow_github_release_failure_doesnt_fail_workflow(tmp_pa
         mock_config_obj.get_git_user_name.return_value = "Test User"
         mock_config_obj.get_git_user_email.return_value = "test@example.com"
         mock_config_obj.get_changelog_path.return_value = "CHANGELOG.md"
+        mock_config_obj.get_update_major_version_tag.return_value = False
         mock_config_obj.config = {}
         mock_config.return_value = mock_config_obj
         mock_branch.return_value = "main"
@@ -865,6 +870,7 @@ def test_tag_release_workflow_github_release_dry_run(tmp_path):
         mock_config_obj.get_git_user_name.return_value = "Test User"
         mock_config_obj.get_git_user_email.return_value = "test@example.com"
         mock_config_obj.get_changelog_path.return_value = "CHANGELOG.md"
+        mock_config_obj.get_update_major_version_tag.return_value = False
         mock_config.return_value = mock_config_obj
         mock_branch.return_value = "main"
         mock_commit.return_value = "chore(main): update files for release 1.2.3"
@@ -923,6 +929,7 @@ def test_tag_release_workflow_github_release_custom_prefix(tmp_path):
         mock_config_obj.get_git_user_email.return_value = "test@example.com"
         mock_config_obj.get_changelog_path.return_value = "CHANGELOG.md"
         mock_config_obj.get_version_prefix.return_value = "release-"  # Custom prefix
+        mock_config_obj.get_update_major_version_tag.return_value = False
         mock_config_obj._config = {}
         mock_config.return_value = mock_config_obj
         mock_branch.return_value = "main"
@@ -997,6 +1004,7 @@ def test_tag_release_workflow_github_release_empty_prefix(tmp_path):
         mock_config_obj.get_git_user_email.return_value = "test@example.com"
         mock_config_obj.get_changelog_path.return_value = "CHANGELOG.md"
         mock_config_obj.get_version_prefix.return_value = ""  # Empty prefix
+        mock_config_obj.get_update_major_version_tag.return_value = False
         mock_config_obj._config = {}
         mock_config.return_value = mock_config_obj
         mock_branch.return_value = "main"
@@ -1087,6 +1095,7 @@ def test_tag_release_workflow_succeeds_on_squash_merge(tmp_path):
         mock_config_obj.get_git_user_email.return_value = "test@example.com"
         mock_config_obj.get_changelog_path.return_value = "CHANGELOG.md"
         mock_config_obj.get_version_prefix.return_value = "v"
+        mock_config_obj.get_update_major_version_tag.return_value = False
         mock_config_obj._config = {}
         mock_config.return_value = mock_config_obj
         mock_branch.return_value = "main"
@@ -1130,6 +1139,7 @@ def test_tag_release_workflow_succeeds_on_merge_commit(tmp_path):
         mock_config_obj.get_git_user_email.return_value = "test@example.com"
         mock_config_obj.get_changelog_path.return_value = "CHANGELOG.md"
         mock_config_obj.get_version_prefix.return_value = "v"
+        mock_config_obj.get_update_major_version_tag.return_value = False
         mock_config_obj._config = {}
         mock_config.return_value = mock_config_obj
         mock_branch.return_value = "main"
@@ -1143,3 +1153,145 @@ def test_tag_release_workflow_succeeds_on_merge_commit(tmp_path):
 
         assert result["success"] is True
         assert result["version"] == "v2.0.0"
+
+
+def test_tag_release_workflow_updates_major_version_tag(tmp_path):
+    """Test that major version tag is created and pushed when configured."""
+    version_file = tmp_path / "version.txt"
+    version_file.write_text("v1.3.0\n")
+
+    with (
+        patch("contiamo_release_please.release.get_git_root") as mock_git_root,
+        patch("contiamo_release_please.release.load_config") as mock_config,
+        patch("contiamo_release_please.release.configure_git_identity"),
+        patch("contiamo_release_please.release.get_current_branch") as mock_branch,
+        patch(
+            "contiamo_release_please.release.get_latest_commit_message"
+        ) as mock_commit,
+        patch("contiamo_release_please.release.tag_exists") as mock_tag_exists,
+        patch("contiamo_release_please.release.create_tag"),
+        patch("contiamo_release_please.release.push_tag"),
+        patch("contiamo_release_please.release.detect_git_host") as mock_detect_host,
+        patch(
+            "contiamo_release_please.release.create_lightweight_tag"
+        ) as mock_create_lw_tag,
+        patch(
+            "contiamo_release_please.release.force_push_tag"
+        ) as mock_force_push_tag,
+    ):
+        mock_git_root.return_value = tmp_path
+        mock_config_obj = Mock()
+        mock_config_obj.get_release_branch_name.return_value = (
+            "release-please--branches--main"
+        )
+        mock_config_obj.get_git_user_name.return_value = "Test User"
+        mock_config_obj.get_git_user_email.return_value = "test@example.com"
+        mock_config_obj.get_update_major_version_tag.return_value = True
+        mock_config_obj.get_version_prefix.return_value = "v"
+        mock_config.return_value = mock_config_obj
+        mock_branch.return_value = "main"
+        mock_commit.return_value = "chore(main): update files for release 1.3.0"
+        mock_tag_exists.return_value = False
+        mock_detect_host.return_value = None
+
+        result = tag_release_workflow()
+
+        assert result["success"] is True
+        assert result["major_version_tag"] == "v1"
+        mock_create_lw_tag.assert_called_once_with("v1", "v1.3.0", tmp_path)
+        mock_force_push_tag.assert_called_once_with("v1", tmp_path)
+
+
+def test_tag_release_workflow_no_major_version_tag_when_disabled(tmp_path):
+    """Test that major version tag is NOT created when config is disabled."""
+    version_file = tmp_path / "version.txt"
+    version_file.write_text("v1.3.0\n")
+
+    with (
+        patch("contiamo_release_please.release.get_git_root") as mock_git_root,
+        patch("contiamo_release_please.release.load_config") as mock_config,
+        patch("contiamo_release_please.release.configure_git_identity"),
+        patch("contiamo_release_please.release.get_current_branch") as mock_branch,
+        patch(
+            "contiamo_release_please.release.get_latest_commit_message"
+        ) as mock_commit,
+        patch("contiamo_release_please.release.tag_exists") as mock_tag_exists,
+        patch("contiamo_release_please.release.create_tag"),
+        patch("contiamo_release_please.release.push_tag"),
+        patch("contiamo_release_please.release.detect_git_host") as mock_detect_host,
+        patch(
+            "contiamo_release_please.release.create_lightweight_tag"
+        ) as mock_create_lw_tag,
+        patch(
+            "contiamo_release_please.release.force_push_tag"
+        ) as mock_force_push_tag,
+    ):
+        mock_git_root.return_value = tmp_path
+        mock_config_obj = Mock()
+        mock_config_obj.get_release_branch_name.return_value = (
+            "release-please--branches--main"
+        )
+        mock_config_obj.get_git_user_name.return_value = "Test User"
+        mock_config_obj.get_git_user_email.return_value = "test@example.com"
+        mock_config_obj.get_update_major_version_tag.return_value = False
+        mock_config.return_value = mock_config_obj
+        mock_branch.return_value = "main"
+        mock_commit.return_value = "chore(main): update files for release 1.3.0"
+        mock_tag_exists.return_value = False
+        mock_detect_host.return_value = None
+
+        result = tag_release_workflow()
+
+        assert result["success"] is True
+        assert result["major_version_tag"] is None
+        mock_create_lw_tag.assert_not_called()
+        mock_force_push_tag.assert_not_called()
+
+
+def test_tag_release_workflow_major_version_tag_custom_prefix(tmp_path):
+    """Test major version tag with custom prefix."""
+    version_file = tmp_path / "version.txt"
+    version_file.write_text("release-2.5.0\n")
+
+    with (
+        patch("contiamo_release_please.release.get_git_root") as mock_git_root,
+        patch("contiamo_release_please.release.load_config") as mock_config,
+        patch("contiamo_release_please.release.configure_git_identity"),
+        patch("contiamo_release_please.release.get_current_branch") as mock_branch,
+        patch(
+            "contiamo_release_please.release.get_latest_commit_message"
+        ) as mock_commit,
+        patch("contiamo_release_please.release.tag_exists") as mock_tag_exists,
+        patch("contiamo_release_please.release.create_tag"),
+        patch("contiamo_release_please.release.push_tag"),
+        patch("contiamo_release_please.release.detect_git_host") as mock_detect_host,
+        patch(
+            "contiamo_release_please.release.create_lightweight_tag"
+        ) as mock_create_lw_tag,
+        patch(
+            "contiamo_release_please.release.force_push_tag"
+        ) as mock_force_push_tag,
+    ):
+        mock_git_root.return_value = tmp_path
+        mock_config_obj = Mock()
+        mock_config_obj.get_release_branch_name.return_value = (
+            "release-please--branches--main"
+        )
+        mock_config_obj.get_git_user_name.return_value = "Test User"
+        mock_config_obj.get_git_user_email.return_value = "test@example.com"
+        mock_config_obj.get_update_major_version_tag.return_value = True
+        mock_config_obj.get_version_prefix.return_value = "release-"
+        mock_config.return_value = mock_config_obj
+        mock_branch.return_value = "main"
+        mock_commit.return_value = "chore(main): update files for release 2.5.0"
+        mock_tag_exists.return_value = False
+        mock_detect_host.return_value = None
+
+        result = tag_release_workflow()
+
+        assert result["success"] is True
+        assert result["major_version_tag"] == "release-2"
+        mock_create_lw_tag.assert_called_once_with(
+            "release-2", "release-2.5.0", tmp_path
+        )
+        mock_force_push_tag.assert_called_once_with("release-2", tmp_path)
