@@ -5,6 +5,7 @@ from typing import Literal
 
 from contiamo_release_please.ci_templates import (
     AZURE_BRANCH_POLICIES_README,
+    AZURE_CI_SETUP_README,
     AZURE_CI_TEMPLATE,
     AZURE_PR_VALIDATION_SCRIPT,
     AZURE_PR_VALIDATION_TEMPLATE,
@@ -52,7 +53,8 @@ def create_azure_pipelines(base_path: Path, dry_run: bool = False) -> list[Path]
     ci_file = azure_dir / "ci.yaml"
     pr_validation_file = azure_dir / "pr-validation.yaml"
     validation_script = scripts_dir / "validate-pr-title.sh"
-    readme_file = azure_dir / "README-BRANCH-POLICIES.md"
+    branch_policies_readme = azure_dir / "README-BRANCH-POLICIES.md"
+    ci_setup_readme = azure_dir / "README-CI-SETUP.md"
 
     if not dry_run:
         azure_dir.mkdir(parents=True, exist_ok=True)
@@ -61,12 +63,21 @@ def create_azure_pipelines(base_path: Path, dry_run: bool = False) -> list[Path]
         ci_file.write_text(AZURE_CI_TEMPLATE.strip() + "\n")
         pr_validation_file.write_text(AZURE_PR_VALIDATION_TEMPLATE.strip() + "\n")
         validation_script.write_text(AZURE_PR_VALIDATION_SCRIPT.strip() + "\n")
-        readme_file.write_text(AZURE_BRANCH_POLICIES_README.strip() + "\n")
+        branch_policies_readme.write_text(
+            AZURE_BRANCH_POLICIES_README.strip() + "\n"
+        )
+        ci_setup_readme.write_text(AZURE_CI_SETUP_README.strip() + "\n")
 
         # Make script executable
         validation_script.chmod(0o755)
 
-    return [ci_file, pr_validation_file, validation_script, readme_file]
+    return [
+        ci_file,
+        pr_validation_file,
+        validation_script,
+        branch_policies_readme,
+        ci_setup_readme,
+    ]
 
 
 def create_gitlab_pipelines(base_path: Path, dry_run: bool = False) -> list[Path]:
@@ -185,11 +196,13 @@ Next Steps:
    git commit -m "chore: add release automation pipelines"
    git push
 
-5. Set up PR title validation:
-   - See the .azure/README-BRANCH-POLICIES.md file for PR Title Validation setup instructions
-   - This includes creating the PR validation pipeline and configuring branch policies
+5. Set up the Release Please pipeline:
+   - See .azure/README-CI-SETUP.md for instructions on creating and configuring the CI pipeline
 
-6. The CI pipeline will run on the next push to main branch
+6. Set up PR title validation:
+   - See .azure/README-BRANCH-POLICIES.md for PR validation pipeline and branch policy setup
+
+7. The CI pipeline will run on the next push to main branch
 
 For more information, see: CI_SETUP.md
 """

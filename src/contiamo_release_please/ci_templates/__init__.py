@@ -2,6 +2,7 @@
 
 from contiamo_release_please.ci_templates.azure import (
     AZURE_BRANCH_POLICIES_README,
+    AZURE_CI_SETUP_README,
     AZURE_CI_TEMPLATE,
     AZURE_PR_VALIDATION_SCRIPT,
     AZURE_PR_VALIDATION_TEMPLATE,
@@ -16,6 +17,7 @@ __all__ = [
     "AZURE_PR_VALIDATION_TEMPLATE",
     "AZURE_PR_VALIDATION_SCRIPT",
     "AZURE_BRANCH_POLICIES_README",
+    "AZURE_CI_SETUP_README",
     "GITLAB_CI_TEMPLATE",
     "generate_config_template",
 ]

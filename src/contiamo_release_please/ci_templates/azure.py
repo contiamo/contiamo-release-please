@@ -179,7 +179,7 @@ Before you can add a build validation policy, you need to create the pipeline in
 8. Click **Continue**
 9. Review the pipeline YAML
 10. Click **Run** to create and validate the pipeline
-11. Once successful, note the pipeline name (you'll need it in the next section)
+11. **Rename the pipeline**: Azure DevOps auto-names pipelines based on the repository, so multiple pipelines may end up with the same name. Go to the pipeline, click the three dots (⋮) → **Rename/move pipeline**, and give it a distinct name (e.g. `PR Validation`). This ensures you can identify it in the build policy dropdown later.
 
 ### 2. Navigate to Branch Policies
 
@@ -201,7 +201,7 @@ Before you can add a build validation policy, you need to create the pipeline in
 #### Add Build Validation Policy
 
 1. Under **Build Validation**, click **+ Add build policy**
-2. Select the build pipeline: `pr-validation` (or the name of your PR validation pipeline from step 1)
+2. Select the build pipeline: `PR Validation` (the name you gave the pipeline in step 1)
 3. Configure the policy:
    - **Display name**: "PR Validation - Title Format"
    - **Trigger**: Automatic (required)
@@ -216,5 +216,51 @@ Before you can add a build validation policy, you need to create the pipeline in
 
 #### Path Filters (Optional)
 - Add specific policies for certain file paths if needed
+
+"""
+
+AZURE_CI_SETUP_README = """# Azure DevOps Release Please Pipeline Setup
+
+## Prerequisites
+
+- Your user should have the "Edit policies" permission in `Project Settings` > `Repos` > `Repositories` > `Security tab`
+- The CI pipeline (`.azure/ci.yaml`) must be committed to the repository
+- The Build Service account must have the required permissions (see below)
+
+## Steps to Configure the Release Please Pipeline
+
+### 1. Create the CI Pipeline
+
+1. Go to your Azure DevOps project
+2. Navigate to **Pipelines** → **Pipelines**
+3. Click **New Pipeline** (or **Create Pipeline**)
+4. Select your repository source
+5. Choose **Existing Azure Pipelines YAML file**
+6. Select the branch (usually `main`)
+7. Select the path: `.azure/ci.yaml`
+8. Click **Continue**
+9. Review the pipeline YAML
+10. Click **Run** to create and validate the pipeline
+11. **Rename the pipeline**: Azure DevOps auto-names pipelines based on the repository, so multiple pipelines may end up with the same name. Go to the pipeline, click the three dots (⋮) → **Rename/move pipeline**, and give it a distinct name (e.g. `Release Please`). This makes it easier to identify in dashboards and build policy dropdowns.
+
+### 2. Grant Build Service Permissions
+
+The pipeline needs permission to create branches, push tags, and contribute to pull requests:
+
+1. Go to **Project Settings** → **Repositories** → select your repository
+2. Go to the **Security** tab
+3. Find the **Build Service** account (e.g. `<Project Name> Build Service (<Organisation>)`)
+4. Grant the following permissions:
+   - **Contribute**: Allow
+   - **Create tag**: Allow
+   - **Contribute to pull requests**: Allow
+
+### 3. Verify the Pipeline
+
+Once set up, the pipeline will:
+- **On push to main**: Automatically create or update a release PR with changelog and version bump
+- **On release PR merge**: Automatically create a git tag and release
+
+You can verify it is working by pushing a conventional commit to `main` and checking that a release PR is created.
 
 """
