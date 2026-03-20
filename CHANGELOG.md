@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.11.1] (2026-03-20)
+
+### Bug Fixes
+
+* Minor improvements in Azure bootstrap
+
 ## [0.11.0] (2026-03-12)
 
 ### Features
