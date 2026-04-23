@@ -99,11 +99,15 @@ def format_changelog_entry(
         for commit in commits:
             description = commit["description"]
             scope = commit["scope"]
+            pr_number = commit["pr_number"]
+            pr_url = commit["pr_url"]
+
+            pr_suffix = f" ([#{pr_number}]({pr_url}))" if pr_number and pr_url else ""
 
             if scope:
-                lines.append(f"* **{scope}**: {description}")
+                lines.append(f"* **{scope}**: {description}{pr_suffix}")
             else:
-                lines.append(f"* {description}")
+                lines.append(f"* {description}{pr_suffix}")
 
         lines.append("")
 

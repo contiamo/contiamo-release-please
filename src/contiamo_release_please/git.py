@@ -139,6 +139,31 @@ def get_latest_tag(
         return None
 
 
+def get_commits_with_sha_since_tag(
+    tag: str | None = None, cwd: Path | None = None
+) -> list[tuple[str, str]]:
+    """Get commit SHAs and messages since a given tag.
+
+    Args:
+        tag: Git tag to start from (None = get all commits)
+        cwd: Repository directory (default: current directory)
+
+    Returns:
+        List of (sha, message) tuples
+
+    Raises:
+        GitError: If git operations fail
+    """
+    range_spec = f"{tag}..HEAD" if tag else "HEAD"
+    output = _run_git_command(
+        ["log", range_spec, "--pretty=format:%H %s"],
+        cwd=cwd,
+    )
+    if not output:
+        return []
+    return [(line[:40], line[41:]) for line in output.split("\n") if line]
+
+
 def get_commits_since_tag(tag: str | None = None, cwd: Path | None = None) -> list[str]:
     """Get commit messages since a given tag.
 
@@ -152,28 +177,7 @@ def get_commits_since_tag(tag: str | None = None, cwd: Path | None = None) -> li
     Raises:
         GitError: If git operations fail
     """
-    # Build git log command
-    if tag:
-        # Get commits since tag
-        range_spec = f"{tag}..HEAD"
-    else:
-        # Get all commits
-        range_spec = "HEAD"
-
-    try:
-        # Get commit messages only (subject line)
-        output = _run_git_command(
-            ["log", range_spec, "--pretty=format:%s"],
-            cwd=cwd,
-        )
-
-        if not output:
-            return []
-
-        return output.split("\n")
-    except GitError as e:
-        # If tag doesn't exist or other error, re-raise
-        raise e
+    return [msg for _, msg in get_commits_with_sha_since_tag(tag, cwd)]
 
 
 def get_latest_commit_message(cwd: Path | None = None) -> str:

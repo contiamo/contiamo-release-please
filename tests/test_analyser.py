@@ -103,6 +103,12 @@ class TestParseCommitMessage:
         assert result["breaking"] is True
         assert result["description"] == "rewrite authentication"
 
+    def test_pr_number_and_url_default_to_none(self):
+        """Test that pr_number and pr_url default to None."""
+        result = parse_commit_message("feat: add new feature")
+        assert result["pr_number"] is None
+        assert result["pr_url"] is None
+
 
 class TestCheckBreakingChange:
     """Tests for check_breaking_change function."""
@@ -111,7 +117,7 @@ class TestCheckBreakingChange:
         """Test detecting breaking change with ! in commit type."""
         parsed = cast(
             ParsedCommit,
-            {"breaking": True, "type": "feat", "scope": "", "description": "test"},
+            {"breaking": True, "type": "feat", "scope": "", "description": "test", "pr_number": None, "pr_url": None},
         )
         assert check_breaking_change("feat!: test", parsed) is True
 
@@ -119,7 +125,7 @@ class TestCheckBreakingChange:
         """Test detecting breaking change in commit body."""
         parsed = cast(
             ParsedCommit,
-            {"breaking": False, "type": "feat", "scope": "", "description": "test"},
+            {"breaking": False, "type": "feat", "scope": "", "description": "test", "pr_number": None, "pr_url": None},
         )
         message = "feat: test\n\nBREAKING CHANGE: this breaks things"
         assert check_breaking_change(message, parsed) is True
@@ -128,7 +134,7 @@ class TestCheckBreakingChange:
         """Test non-breaking commit."""
         parsed = cast(
             ParsedCommit,
-            {"breaking": False, "type": "feat", "scope": "", "description": "test"},
+            {"breaking": False, "type": "feat", "scope": "", "description": "test", "pr_number": None, "pr_url": None},
         )
         assert check_breaking_change("feat: test", parsed) is False
 

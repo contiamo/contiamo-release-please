@@ -353,6 +353,33 @@ def create_gitlab_release(
         raise GitLabError(error_msg)
 
 
+def get_mr_for_commit(
+    host: str,
+    project_path: str,
+    sha: str,
+    token: str,
+) -> tuple[int, str] | None:
+    """Return (mr_iid, mr_url) for the first MR associated with a commit SHA, or None.
+
+    Failures are silently suppressed so a missing or inaccessible MR never blocks a release.
+    """
+    project_id = get_project_id(host, project_path)
+    url = f"https://{host}/api/v4/projects/{project_id}/repository/commits/{sha}/merge_requests"
+    headers = {"PRIVATE-TOKEN": token}
+
+    try:
+        response = requests.get(url, headers=headers, timeout=30)
+        if response.status_code != 200:
+            return None
+        mrs = response.json()
+        if mrs:
+            mr = mrs[0]
+            return mr["iid"], mr["web_url"]
+        return None
+    except requests.exceptions.RequestException:
+        return None
+
+
 def create_or_update_pr(
     host: str,
     project_path: str,

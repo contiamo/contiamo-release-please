@@ -326,6 +326,35 @@ def create_github_release(
         raise GitHubError(error_msg)
 
 
+def get_pr_for_commit(
+    owner: str,
+    repo: str,
+    sha: str,
+    token: str,
+) -> tuple[int, str] | None:
+    """Return (pr_number, pr_url) for the first PR associated with a commit SHA, or None.
+
+    Failures are silently suppressed so a missing or inaccessible PR never blocks a release.
+    """
+    url = f"https://api.github.com/repos/{owner}/{repo}/commits/{sha}/pulls"
+    headers = {
+        "Authorization": f"token {token}",
+        "Accept": "application/vnd.github+json",
+    }
+
+    try:
+        response = requests.get(url, headers=headers, timeout=30)
+        if response.status_code != 200:
+            return None
+        prs = response.json()
+        if prs:
+            pr = prs[0]
+            return pr["number"], pr["html_url"]
+        return None
+    except requests.exceptions.RequestException:
+        return None
+
+
 def create_or_update_pr(
     owner: str,
     repo: str,

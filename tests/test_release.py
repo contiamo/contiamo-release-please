@@ -201,11 +201,13 @@ def test_create_release_branch_workflow_dry_run():
         patch("contiamo_release_please.release.load_config") as mock_config,
         patch("contiamo_release_please.release.configure_git_identity"),
         patch("contiamo_release_please.release.get_latest_tag") as mock_tag,
-        patch("contiamo_release_please.release.get_commits_since_tag") as mock_commits,
+        patch("contiamo_release_please.release.get_commits_with_sha_since_tag") as mock_commits,
         patch("contiamo_release_please.release.analyse_commits") as mock_analyse,
         patch("contiamo_release_please.release.parse_version") as mock_parse,
         patch("contiamo_release_please.git.detect_git_host") as mock_detect_host,
         patch("contiamo_release_please.github.get_github_token") as mock_get_token,
+        patch("contiamo_release_please.github.get_repo_info") as mock_repo_info,
+        patch("contiamo_release_please.release._enrich_commits_with_pr_info") as mock_enrich,
     ):
         # Setup mocks
         mock_git_root.return_value = Path("/tmp/repo")
@@ -224,15 +226,17 @@ def test_create_release_branch_workflow_dry_run():
         mock_config.return_value = mock_config_obj
 
         mock_tag.return_value = "v1.0.0"
-        mock_parse.return_value = "1.0.0"  # Return string, not Version object
-        mock_commits.return_value = ["feat: add feature"]
-        mock_analyse.return_value = (
-            "minor"  # analyse_commits returns just the release type string
-        )
+        mock_parse.return_value = "1.0.0"
+        mock_commits.return_value = [("a94a8fe5ccb19ba61c4c0873d391e987982fbbd3", "feat: add feature")]
+        mock_analyse.return_value = "minor"
+        mock_enrich.return_value = [
+            {"type": "feat", "scope": "", "breaking": False, "description": "add feature", "pr_number": None, "pr_url": None}
+        ]
 
         # Mock git host detection and credentials
         mock_detect_host.return_value = "github"
         mock_get_token.return_value = "fake_token"
+        mock_repo_info.return_value = ("owner", "repo")
 
         # Run dry-run
         result = create_release_branch_workflow(dry_run=True, verbose=False)
@@ -249,7 +253,7 @@ def test_create_release_branch_workflow_no_commits():
         patch("contiamo_release_please.release.load_config") as mock_config,
         patch("contiamo_release_please.release.configure_git_identity"),
         patch("contiamo_release_please.release.get_latest_tag") as mock_tag,
-        patch("contiamo_release_please.release.get_commits_since_tag") as mock_commits,
+        patch("contiamo_release_please.release.get_commits_with_sha_since_tag") as mock_commits,
     ):
         mock_git_root.return_value = Path("/tmp/repo")
         mock_config_obj = Mock()
@@ -270,7 +274,7 @@ def test_create_release_branch_workflow_no_releasable_commits():
         patch("contiamo_release_please.release.load_config") as mock_config,
         patch("contiamo_release_please.release.configure_git_identity"),
         patch("contiamo_release_please.release.get_latest_tag") as mock_tag,
-        patch("contiamo_release_please.release.get_commits_since_tag") as mock_commits,
+        patch("contiamo_release_please.release.get_commits_with_sha_since_tag") as mock_commits,
         patch("contiamo_release_please.release.is_release_commit") as mock_is_release,
         patch("contiamo_release_please.release.analyse_commits") as mock_analyse,
     ):
@@ -285,7 +289,7 @@ def test_create_release_branch_workflow_no_releasable_commits():
         mock_config.return_value = mock_config_obj
 
         mock_tag.return_value = "v1.0.0"
-        mock_commits.return_value = ["docs: update docs"]
+        mock_commits.return_value = [("a94a8fe5ccb19ba61c4c0873d391e987982fbbd3", "docs: update docs")]
         mock_is_release.return_value = False  # Not a release commit
         mock_analyse.return_value = None  # No releasable commits
 
@@ -300,7 +304,7 @@ def test_create_release_branch_workflow_only_release_commits():
         patch("contiamo_release_please.release.load_config") as mock_config,
         patch("contiamo_release_please.release.configure_git_identity"),
         patch("contiamo_release_please.release.get_latest_tag") as mock_tag,
-        patch("contiamo_release_please.release.get_commits_since_tag") as mock_commits,
+        patch("contiamo_release_please.release.get_commits_with_sha_since_tag") as mock_commits,
         patch("contiamo_release_please.release.is_release_commit") as mock_is_release,
     ):
         mock_git_root.return_value = Path("/tmp/repo")
@@ -314,7 +318,7 @@ def test_create_release_branch_workflow_only_release_commits():
         mock_config.return_value = mock_config_obj
 
         mock_tag.return_value = "v1.0.0"
-        mock_commits.return_value = ["chore(main): update files for release 1.0.0"]
+        mock_commits.return_value = [("a94a8fe5ccb19ba61c4c0873d391e987982fbbd3", "chore(main): update files for release 1.0.0")]
         mock_is_release.return_value = True  # This is a release commit
 
         with pytest.raises(
@@ -332,21 +336,21 @@ def test_create_release_branch_workflow_switches_back_to_source():
         patch("contiamo_release_please.release.configure_git_identity"),
         patch("contiamo_release_please.release.get_latest_tag"),
         patch("contiamo_release_please.release.parse_version"),
-        patch("contiamo_release_please.release.get_commits_since_tag"),
+        patch("contiamo_release_please.release.get_commits_with_sha_since_tag"),
         patch("contiamo_release_please.release.is_release_commit"),
         patch("contiamo_release_please.release.analyse_commits"),
         patch("contiamo_release_please.release.get_commit_type_summary"),
-        patch("contiamo_release_please.release.parse_commit_message"),
+        patch("contiamo_release_please.release._enrich_commits_with_pr_info"),
         patch("contiamo_release_please.release.get_next_version"),
         patch("contiamo_release_please.git.detect_git_host"),
         patch("contiamo_release_please.github.get_github_token"),
+        patch("contiamo_release_please.github.get_repo_info"),
         patch("contiamo_release_please.release.create_or_reset_release_branch"),
         patch("contiamo_release_please.release.prepend_to_changelog"),
         patch("contiamo_release_please.release.write_version_file"),
         patch("contiamo_release_please.release.bump_files"),
         patch("contiamo_release_please.release.stage_and_commit_release_changes"),
         patch("contiamo_release_please.release.push_release_branch"),
-        patch("contiamo_release_please.github.get_repo_info"),
         patch("contiamo_release_please.github.create_or_update_pr"),
         patch("contiamo_release_please.release.checkout_branch"),
     ]
@@ -363,17 +367,17 @@ def test_create_release_branch_workflow_switches_back_to_source():
             mock_is_release,
             mock_analyse,
             mock_summary,
-            mock_parse_msg,
+            mock_enrich,
             mock_next_version,
             mock_detect_host,
             mock_get_token,
+            mock_repo_info,
             _,
             _,
             _,
             mock_bump,
             _,
             _,
-            mock_repo_info,
             mock_pr,
             mock_checkout,
         ) = mocks
@@ -395,16 +399,13 @@ def test_create_release_branch_workflow_switches_back_to_source():
 
         mock_tag.return_value = "v1.0.0"
         mock_parse.return_value = "1.0.0"
-        mock_commits.return_value = ["feat: add feature"]
+        mock_commits.return_value = [("a94a8fe5ccb19ba61c4c0873d391e987982fbbd3", "feat: add feature")]
         mock_is_release.return_value = False
         mock_analyse.return_value = "minor"
         mock_summary.return_value = {"feat": 1}
-        mock_parse_msg.return_value = {
-            "type": "feat",
-            "scope": "",
-            "breaking": False,
-            "description": "add feature",
-        }
+        mock_enrich.return_value = [
+            {"type": "feat", "scope": "", "breaking": False, "description": "add feature", "pr_number": None, "pr_url": None}
+        ]
         mock_next_version.return_value = "1.1.0"
         mock_detect_host.return_value = "github"
         mock_get_token.return_value = "fake_token"
