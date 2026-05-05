@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.11.2] (2026-04-29)
+
+### Bug Fixes
+
+* **action**: make stage detection robust to API consistency lag (#30)
+
 ## [0.11.1] (2026-03-20)
 
 ### Bug Fixes

@@ -97,24 +97,59 @@ runs:
         echo "release-url=" >> $GITHUB_OUTPUT
         echo "release-type=" >> $GITHUB_OUTPUT
 
-        # Detect which stage to run based on GitHub PR information
+        # Detect which stage to run. Two independent signals OR'd together,
+        # because either can fail in isolation:
+        #   1. The merge commit subject matches the release-bot's known
+        #      format (mirrors analyser.py:RELEASE_COMMIT_PATTERNS).
+        #   2. The PR for this SHA came from the release branch.
+        #      Subject to GitHub API consistency lag immediately after a
+        #      merge, so we retry with backoff.
         COMMIT_SHA="${{ github.sha }}"
         echo "Checking commit: $COMMIT_SHA"
 
-        # Query GitHub API to get PR info for this commit
-        PR_JSON=$(curl -s \
-          -H "Authorization: token ${{ inputs.token }}" \
-          -H "Accept: application/vnd.github+json" \
-          "https://api.github.com/repos/${{ github.repository }}/commits/$COMMIT_SHA/pulls")
+        MODE="release"
 
-        # Check if this commit came from a release branch
-        # Look for release-please--branches-- pattern in the source branch name
-        if echo "$PR_JSON" | jq -e '.[0].head.ref | test("release-please--branches--")' > /dev/null 2>&1; then
-          echo "Detected release PR merge (from $(echo "$PR_JSON" | jq -r '.[0].head.ref')) - creating tag and release"
-          MODE="tag-release"
+        # Signal 1: merge commit subject.
+        COMMIT_SUBJECT=$(git log -1 --format=%s "$COMMIT_SHA" 2>/dev/null || echo "")
+        RELEASE_COMMIT_RES=(
+          "^Merge branch 'release-please--branches--"
+          '^Merge pull request #[0-9]+ from [^/]+/release-please--branches--'
+          '^(Merged PR [0-9]+: )?chore\([^)]+\):[[:space:]]+(update files for )?release'
+        )
+        for re in "${RELEASE_COMMIT_RES[@]}"; do
+          if [[ "$COMMIT_SUBJECT" =~ $re ]]; then
+            echo "Detected release commit subject: $COMMIT_SUBJECT"
+            MODE="tag-release"
+            break
+          fi
+        done
+
+        # Signal 2: PR for this SHA came from a release branch.
+        # Retry up to 5 times to handle GitHub API consistency lag.
+        if [ "$MODE" = "release" ]; then
+          PR_JSON="[]"
+          for attempt in 1 2 3 4 5; do
+            PR_JSON=$(curl -fsS \
+              -H "Authorization: token ${{ inputs.token }}" \
+              -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/${{ github.repository }}/commits/$COMMIT_SHA/pulls" \
+              || echo "[]")
+            if echo "$PR_JSON" | jq -e 'length > 0' > /dev/null 2>&1; then
+              break
+            fi
+            sleep $((attempt * 3))
+          done
+
+          if echo "$PR_JSON" | jq -e '.[0].head.ref | test("release-please--branches--")' > /dev/null 2>&1; then
+            echo "Detected release PR merge (from $(echo "$PR_JSON" | jq -r '.[0].head.ref')) - creating tag and release"
+            MODE="tag-release"
+          fi
+        fi
+
+        if [ "$MODE" = "tag-release" ]; then
+          echo "Mode: tag-release"
         else
           echo "Regular push detected - creating/updating release PR"
-          MODE="release"
         fi
 
         # Build command
