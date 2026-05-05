@@ -13,10 +13,15 @@ class ParsedCommit(TypedDict):
     scope: str
     breaking: bool
     description: str
+    pr_number: int | None
+    pr_url: str | None
 
 
 # Release type priority (higher index = higher priority)
 RELEASE_TYPE_PRIORITY = ["patch", "minor", "major"]
+
+# Matches Azure DevOps merge commit prefixes like "Merged PR 527516: "
+AZURE_MERGED_PR_RE = re.compile(r"^Merged PR (\d+):\s*")
 
 # Release commit patterns that identify release infrastructure commits
 # These patterns use {release_branch} as a placeholder for dynamic substitution
@@ -45,9 +50,7 @@ def parse_commit_message(message: str) -> ParsedCommit:
     Returns:
         Dictionary with 'type', 'scope', 'breaking', and 'description' keys
     """
-    # Strip Azure DevOps merge commit prefix if present
-    # Example: "Merged PR 527516: ci: add release process" -> "ci: add release process"
-    message = re.sub(r"^Merged PR \d+:\s*", "", message.strip())
+    message = AZURE_MERGED_PR_RE.sub("", message.strip())
 
     # Conventional commit format: type(scope)!: description
     # Breaking change indicators: ! after type/scope, or "BREAKING CHANGE:" in body
@@ -61,6 +64,8 @@ def parse_commit_message(message: str) -> ParsedCommit:
             "scope": match.group("scope") or "",
             "breaking": match.group("breaking") == "!",
             "description": match.group("description"),
+            "pr_number": None,
+            "pr_url": None,
         }
 
     # If doesn't match conventional commit format, return unknown type
@@ -69,6 +74,8 @@ def parse_commit_message(message: str) -> ParsedCommit:
         "scope": "",
         "breaking": False,
         "description": message.strip(),
+        "pr_number": None,
+        "pr_url": None,
     }
 
 

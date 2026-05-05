@@ -7,6 +7,8 @@ from typing import Any
 import click
 
 from contiamo_release_please.analyser import (
+    AZURE_MERGED_PR_RE,
+    ParsedCommit,
     analyse_commits,
     get_commit_type_summary,
     is_release_commit,
@@ -26,7 +28,7 @@ from contiamo_release_please.git import (
     create_tag,
     detect_git_host,
     force_push_tag,
-    get_commits_since_tag,
+    get_commits_with_sha_since_tag,
     get_current_branch,
     get_git_root,
     get_latest_commit_message,
@@ -228,6 +230,68 @@ def push_release_branch(
         raise ReleaseError(f"Failed to push release branch '{branch_name}': {stderr}")
 
 
+def _enrich_commits_with_pr_info(
+    commits_with_sha: list[tuple[str, str]],
+    git_host: str,
+    host_context: dict,
+    token: str,
+) -> list[ParsedCommit]:
+    """Parse commits and enrich each with a PR/MR number and link.
+
+    Failures in individual PR lookups are silently ignored so the release
+    workflow is not blocked by transient API errors.
+    """
+    if git_host.lower() == "azure":
+        from contiamo_release_please.azure import get_azure_pr_url
+
+        org = host_context.get("org", "")
+        project = host_context.get("project", "")
+        repo = host_context.get("repo", "")
+
+        result: list[ParsedCommit] = []
+        for _sha, message in commits_with_sha:
+            parsed = parse_commit_message(message)
+            m = AZURE_MERGED_PR_RE.match(message.strip())
+            if m:
+                pr_id = int(m.group(1))
+                parsed["pr_number"] = pr_id
+                parsed["pr_url"] = get_azure_pr_url(org, project, repo, pr_id)
+            result.append(parsed)
+        return result
+
+    if git_host.lower() == "github":
+        from contiamo_release_please.github import get_pr_for_commit
+
+        owner = host_context.get("owner", "")
+        repo = host_context.get("repo", "")
+
+        def lookup(sha: str) -> tuple[int, str] | None:
+            return get_pr_for_commit(owner, repo, sha, token)
+
+    elif git_host.lower() == "gitlab":
+        from contiamo_release_please.gitlab import get_mr_for_commit
+
+        host = host_context.get("host", "")
+        project_path = host_context.get("project_path", "")
+
+        def lookup(sha: str) -> tuple[int, str] | None:  # type: ignore[no-redef]
+            return get_mr_for_commit(host, project_path, sha, token)
+    else:
+        return [parse_commit_message(msg) for _, msg in commits_with_sha]
+
+    result = []
+    for sha, message in commits_with_sha:
+        parsed = parse_commit_message(message)
+        try:
+            pr_info = lookup(sha)
+            if pr_info:
+                parsed["pr_number"], parsed["pr_url"] = pr_info
+        except Exception:
+            pass
+        result.append(parsed)
+    return result
+
+
 def create_release_branch_workflow(
     config_path: str | None = None,
     dry_run: bool = False,
@@ -285,34 +349,38 @@ def create_release_branch_workflow(
     else:
         current_version_str = None
 
-    # Get all commits since last tag
-    all_commits = get_commits_since_tag(latest_tag, git_root)
-    if not all_commits:
+    # Get all commits since last tag (with SHAs for PR/MR link enrichment)
+    all_commits_with_sha = get_commits_with_sha_since_tag(latest_tag, git_root)
+    if not all_commits_with_sha:
         raise ReleaseError("No commits since last release")
 
     # Filter out release infrastructure commits
-    commits = [c for c in all_commits if not is_release_commit(c, release_branch)]
+    commits_with_sha = [
+        (sha, msg)
+        for sha, msg in all_commits_with_sha
+        if not is_release_commit(msg, release_branch)
+    ]
 
     # Check if only release commits exist (user forgot to run tag-release)
-    if not commits and all_commits:
+    if not commits_with_sha and all_commits_with_sha:
         raise ReleaseError(
             "Only release infrastructure commits found since last tag. "
             "Please run 'contiamo-release-please tag-release' to tag the merged release."
         )
 
-    if not commits:
+    if not commits_with_sha:
         raise ReleaseError("No commits since last release")
 
+    # Extract just messages for analysis (SHA not needed here)
+    commit_messages = [msg for _, msg in commits_with_sha]
+
     # Analyse commits (returns release type string)
-    release_type = analyse_commits(commits, config)
+    release_type = analyse_commits(commit_messages, config)
     if not release_type:
         raise ReleaseError("No releasable commits found")
 
     # Get commit summary
-    commit_summary = get_commit_type_summary(commits, config)
-
-    # Parse commits for changelog
-    parsed_commits = [parse_commit_message(c) for c in commits]
+    commit_summary = get_commit_type_summary(commit_messages, config)
 
     # Calculate next version (handles first release correctly)
     next_version = get_next_version(current_version_str, release_type)
@@ -333,30 +401,56 @@ def create_release_branch_workflow(
             "Use --git-host to specify provider explicitly: --git-host github|azure|gitlab"
         )
 
-    # Validate credentials for detected git host (even in dry-run)
+    # Validate credentials and resolve host context (even in dry-run)
+    host_token: str = ""
+    host_context: dict = {}
+
     if determined_git_host.lower() == "github":
-        from contiamo_release_please.github import GitHubError, get_github_token
+        from contiamo_release_please.github import (
+            GitHubError,
+            get_github_token,
+            get_repo_info,
+        )
 
         try:
-            get_github_token(config._config)
+            host_token = get_github_token(config._config)
+            owner, repo_name = get_repo_info(git_root)
+            host_context = {"owner": owner, "repo": repo_name}
         except GitHubError as e:
             raise ReleaseError(f"GitHub detected but authentication failed: {e}")
 
     elif determined_git_host.lower() == "azure":
-        from contiamo_release_please.azure import AzureDevOpsError, get_azure_token
+        from contiamo_release_please.azure import (
+            AzureDevOpsError,
+            get_azure_repo_info,
+            get_azure_token,
+        )
 
         try:
-            get_azure_token(config._config)
+            host_token = get_azure_token(config._config)
+            az_org, az_project, az_repo = get_azure_repo_info(git_root)
+            host_context = {"org": az_org, "project": az_project, "repo": az_repo}
         except AzureDevOpsError as e:
             raise ReleaseError(f"Azure DevOps detected but authentication failed: {e}")
 
     elif determined_git_host.lower() == "gitlab":
-        from contiamo_release_please.gitlab import GitLabError, get_gitlab_token
+        from contiamo_release_please.gitlab import (
+            GitLabError,
+            get_gitlab_repo_info,
+            get_gitlab_token,
+        )
 
         try:
-            get_gitlab_token(config._config)
+            host_token = get_gitlab_token(config._config)
+            gl_host, project_path = get_gitlab_repo_info(git_root)
+            host_context = {"host": gl_host, "project_path": project_path}
         except GitLabError as e:
             raise ReleaseError(f"GitLab detected but authentication failed: {e}")
+
+    # Parse commits and enrich with PR/MR links from the git host
+    parsed_commits = _enrich_commits_with_pr_info(
+        commits_with_sha, determined_git_host, host_context, host_token
+    )
 
     # Generate changelog entry (needed for both dry-run and actual run)
     grouped_commits = {}
@@ -379,7 +473,7 @@ def create_release_branch_workflow(
         click.echo(f"Current version: {current_version_str or 'none'}")
         click.echo(f"Next version: {next_version_prefixed}")
         click.echo(f"Release type: {release_type}")
-        click.echo(f"\nCommits to include: {len(commits)}")
+        click.echo(f"\nCommits to include: {len(commit_messages)}")
 
         if verbose:
             for commit_type, count in commit_summary.items():
@@ -463,38 +557,20 @@ def create_release_branch_workflow(
     # Create or update pull request (git host is always determined at this point)
     pr_url = None
     if determined_git_host.lower() == "github":
-        from contiamo_release_please.github import (
-            GitHubError,
-            create_or_update_pr,
-            get_github_token,
-            get_repo_info,
-        )
+        from contiamo_release_please.github import GitHubError, create_or_update_pr
 
         try:
             if verbose:
                 click.echo("\nCreating/updating GitHub pull request...")
 
-            # Get authentication
-            token = get_github_token(config._config)
-
-            # Get repo info
-            owner, repo = get_repo_info(git_root)
-
-            # Generate PR title (matching release-please format)
-            pr_title = f"chore({source_branch}): release {next_version}"
-
-            # Use changelog entry as PR body
-            pr_body = changelog_entry
-
-            # Create or update PR
             pr_data = create_or_update_pr(
-                owner=owner,
-                repo=repo,
-                title=pr_title,
-                body=pr_body,
+                owner=host_context["owner"],
+                repo=host_context["repo"],
+                title=f"chore({source_branch}): release {next_version}",
+                body=changelog_entry,
                 head_branch=release_branch,
                 base_branch=source_branch,
-                token=token,
+                token=host_token,
                 dry_run=dry_run,
                 verbose=verbose,
             )
@@ -509,39 +585,21 @@ def create_release_branch_workflow(
             raise ReleaseError(f"GitHub PR creation failed: {e}")
 
     elif determined_git_host.lower() == "azure":
-        from contiamo_release_please.azure import (
-            AzureDevOpsError,
-            create_or_update_pr,
-            get_azure_repo_info,
-            get_azure_token,
-        )
+        from contiamo_release_please.azure import AzureDevOpsError, create_or_update_pr
 
         try:
             if verbose:
                 click.echo("\nCreating/updating Azure DevOps pull request...")
 
-            # Get authentication
-            token = get_azure_token(config._config)
-
-            # Get repo info
-            org, project, repo = get_azure_repo_info(git_root)
-
-            # Generate PR title (matching release-please format)
-            pr_title = f"chore({source_branch}): release {next_version}"
-
-            # Use changelog entry as PR body
-            pr_body = changelog_entry
-
-            # Create or update PR
             pr_data = create_or_update_pr(
-                org=org,
-                project=project,
-                repo=repo,
-                title=pr_title,
-                body=pr_body,
+                org=host_context["org"],
+                project=host_context["project"],
+                repo=host_context["repo"],
+                title=f"chore({source_branch}): release {next_version}",
+                body=changelog_entry,
                 head_branch=release_branch,
                 base_branch=source_branch,
-                token=token,
+                token=host_token,
                 dry_run=dry_run,
                 verbose=verbose,
             )
@@ -556,38 +614,20 @@ def create_release_branch_workflow(
             raise ReleaseError(f"Azure DevOps PR creation failed: {e}")
 
     elif determined_git_host.lower() == "gitlab":
-        from contiamo_release_please.gitlab import (
-            GitLabError,
-            create_or_update_pr,
-            get_gitlab_repo_info,
-            get_gitlab_token,
-        )
+        from contiamo_release_please.gitlab import GitLabError, create_or_update_pr
 
         try:
             if verbose:
                 click.echo("\nCreating/updating GitLab merge request...")
 
-            # Get authentication
-            token = get_gitlab_token(config._config)
-
-            # Get repo info
-            host, project_path = get_gitlab_repo_info(git_root)
-
-            # Generate MR title (matching release-please format)
-            pr_title = f"chore({source_branch}): release {next_version}"
-
-            # Use changelog entry as MR body
-            pr_body = changelog_entry
-
-            # Create or update MR
             mr_data = create_or_update_pr(
-                host=host,
-                project_path=project_path,
-                title=pr_title,
-                body=pr_body,
+                host=host_context["host"],
+                project_path=host_context["project_path"],
+                title=f"chore({source_branch}): release {next_version}",
+                body=changelog_entry,
                 head_branch=release_branch,
                 base_branch=source_branch,
-                token=token,
+                token=host_token,
                 dry_run=dry_run,
                 verbose=verbose,
             )

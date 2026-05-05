@@ -103,6 +103,10 @@ def get_azure_repo_info(git_root: Path) -> tuple[str, str, str]:
         raise AzureDevOpsError(f"Failed to get git remote URL: {e}")
 
 
+def get_azure_pr_url(org: str, project: str, repo: str, pr_id: int) -> str:
+    return f"https://dev.azure.com/{org}/{project}/_git/{repo}/pullrequest/{pr_id}"
+
+
 def find_existing_pr(
     org: str,
     project: str,

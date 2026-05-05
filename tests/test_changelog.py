@@ -135,6 +135,8 @@ def test_format_changelog_entry_basic(temp_config_file):
                     "scope": "",
                     "breaking": False,
                     "description": "add user authentication",
+                    "pr_number": None,
+                    "pr_url": None,
                 },
             )
         ],
@@ -146,6 +148,8 @@ def test_format_changelog_entry_basic(temp_config_file):
                     "scope": "",
                     "breaking": False,
                     "description": "correct login redirect",
+                    "pr_number": None,
+                    "pr_url": None,
                 },
             )
         ],
@@ -173,6 +177,8 @@ def test_format_changelog_entry_with_scopes(temp_config_file):
                     "scope": "auth",
                     "breaking": False,
                     "description": "add user authentication",
+                    "pr_number": None,
+                    "pr_url": None,
                 },
             )
         ],
@@ -184,6 +190,8 @@ def test_format_changelog_entry_with_scopes(temp_config_file):
                     "scope": "ui",
                     "breaking": False,
                     "description": "correct login redirect",
+                    "pr_number": None,
+                    "pr_url": None,
                 },
             )
         ],
@@ -208,6 +216,8 @@ def test_format_changelog_entry_section_order(temp_config_file):
                     "scope": "",
                     "breaking": False,
                     "description": "update README",
+                    "pr_number": None,
+                    "pr_url": None,
                 },
             )
         ],
@@ -219,6 +229,8 @@ def test_format_changelog_entry_section_order(temp_config_file):
                     "scope": "",
                     "breaking": False,
                     "description": "add feature",
+                    "pr_number": None,
+                    "pr_url": None,
                 },
             )
         ],
@@ -230,6 +242,8 @@ def test_format_changelog_entry_section_order(temp_config_file):
                     "scope": "",
                     "breaking": False,
                     "description": "fix bug",
+                    "pr_number": None,
+                    "pr_url": None,
                 },
             )
         ],
@@ -440,3 +454,79 @@ def test_extract_changelog_for_version_file_not_found():
     changelog_path = Path("/nonexistent/CHANGELOG.md")
     result = extract_changelog_for_version(changelog_path, "1.0.0")
     assert result is None
+
+
+def test_format_changelog_entry_with_pr_link(temp_config_file):
+    """Test changelog entry includes PR link when pr_number and pr_url are set."""
+    config = ReleaseConfig(temp_config_file)
+
+    grouped = {
+        "Features": [
+            cast(
+                ParsedCommit,
+                {
+                    "type": "feat",
+                    "scope": "",
+                    "breaking": False,
+                    "description": "add user authentication",
+                    "pr_number": 42,
+                    "pr_url": "https://github.com/owner/repo/pull/42",
+                },
+            )
+        ],
+    }
+
+    entry = format_changelog_entry("1.3.0", grouped, config, date="2025-10-10")
+
+    assert "* add user authentication ([#42](https://github.com/owner/repo/pull/42))" in entry
+
+
+def test_format_changelog_entry_with_scoped_pr_link(temp_config_file):
+    """Test changelog entry includes PR link alongside scope."""
+    config = ReleaseConfig(temp_config_file)
+
+    grouped = {
+        "Bug Fixes": [
+            cast(
+                ParsedCommit,
+                {
+                    "type": "fix",
+                    "scope": "api",
+                    "breaking": False,
+                    "description": "resolve null pointer",
+                    "pr_number": 7,
+                    "pr_url": "https://gitlab.example.com/org/repo/-/merge_requests/7",
+                },
+            )
+        ],
+    }
+
+    entry = format_changelog_entry("1.3.0", grouped, config, date="2025-10-10")
+
+    assert "* **api**: resolve null pointer ([#7](https://gitlab.example.com/org/repo/-/merge_requests/7))" in entry
+
+
+def test_format_changelog_entry_no_pr_link_when_missing(temp_config_file):
+    """Test changelog entry omits PR suffix when pr_number or pr_url is None."""
+    config = ReleaseConfig(temp_config_file)
+
+    grouped = {
+        "Features": [
+            cast(
+                ParsedCommit,
+                {
+                    "type": "feat",
+                    "scope": "",
+                    "breaking": False,
+                    "description": "add feature without pr",
+                    "pr_number": None,
+                    "pr_url": None,
+                },
+            )
+        ],
+    }
+
+    entry = format_changelog_entry("1.3.0", grouped, config, date="2025-10-10")
+
+    assert "* add feature without pr\n" in entry
+    assert "([#" not in entry
