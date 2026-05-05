@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.12.0] (2026-05-05)
+
+### Features
+
+* enrich changelog entries with PR/MR links (#29) ([#29](https://github.com/contiamo/contiamo-release-please/pull/29))
+
 ## [0.11.2] (2026-04-29)
 
 ### Bug Fixes
