@@ -9,6 +9,7 @@ import pytest
 
 from contiamo_release_please.release import (
     ReleaseError,
+    _enrich_commits_with_pr_info,
     branch_exists,
     create_or_reset_release_branch,
     create_release_branch_workflow,
@@ -1296,3 +1297,22 @@ def test_tag_release_workflow_major_version_tag_custom_prefix(tmp_path):
             "release-2", "release-2.5.0", tmp_path
         )
         mock_force_push_tag.assert_called_once_with("release-2", tmp_path)
+
+
+def test_enrich_commits_strips_github_pr_suffix():
+    """GitHub squash-merge subjects end with (#N); strip it to avoid duplicating the link."""
+    with patch(
+        "contiamo_release_please.github.get_pr_for_commit",
+        return_value=(42, "https://github.com/owner/repo/pull/42"),
+    ):
+        result = _enrich_commits_with_pr_info(
+            [("abc123", "feat: add new feature (#42)")],
+            git_host="github",
+            host_context={"owner": "owner", "repo": "repo"},
+            token="test-token",
+        )
+
+    assert len(result) == 1
+    assert result[0]["description"] == "add new feature"
+    assert result[0]["pr_number"] == 42
+    assert result[0]["pr_url"] == "https://github.com/owner/repo/pull/42"

@@ -1,5 +1,6 @@
 """Release branch creation and management for contiamo-release-please."""
 
+import re
 import subprocess
 from pathlib import Path
 from typing import Any
@@ -279,9 +280,12 @@ def _enrich_commits_with_pr_info(
     else:
         return [parse_commit_message(msg) for _, msg in commits_with_sha]
 
+    _trailing_pr_re = re.compile(r"\s*\(#\d+\)\s*$")
+
     result = []
     for sha, message in commits_with_sha:
         parsed = parse_commit_message(message)
+        parsed["description"] = _trailing_pr_re.sub("", parsed["description"])
         try:
             pr_info = lookup(sha)
             if pr_info:
