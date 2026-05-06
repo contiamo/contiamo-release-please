@@ -17,6 +17,12 @@ class FileBumperError(Exception):
     pass
 
 
+class FileBumperAlreadyCurrentError(FileBumperError):
+    """Raised when all version strings in a marker block already equal the target version."""
+
+    pass
+
+
 class FileBumper(ABC):
     """Abstract base class for file version bumpers."""
 
@@ -208,6 +214,7 @@ class GenericFileBumper(FileBumper):
             inside_block = False
             found_markers = False
             modified_lines = []
+            versions_found = 0
             versions_replaced = 0
 
             for line in lines:
@@ -226,11 +233,13 @@ class GenericFileBumper(FileBumper):
 
                 # If inside block, replace version strings
                 if inside_block:
-                    # Replace all version occurrences on this line
                     original_line = line
                     line = self.VERSION_PATTERN.sub(version, line)
                     if line != original_line:
+                        versions_found += 1
                         versions_replaced += 1
+                    elif self.VERSION_PATTERN.search(original_line):
+                        versions_found += 1
 
                 modified_lines.append(line)
 
@@ -241,10 +250,16 @@ class GenericFileBumper(FileBumper):
                     f"Add marker comments to indicate where versions should be updated."
                 )
 
-            # Validate at least one version was replaced
-            if versions_replaced == 0:
+            # No version strings at all between markers → true config error
+            if versions_found == 0:
                 raise FileBumperError(
                     f"No version strings found between markers in {file_path}"
+                )
+
+            # Versions exist but none changed → file already at the target version
+            if versions_replaced == 0:
+                raise FileBumperAlreadyCurrentError(
+                    f"Version already at target in {file_path}; skipping bump"
                 )
 
             # Write back to file
@@ -306,7 +321,7 @@ def bump_files(
     Raises:
         FileBumperError: If configuration is invalid
     """
-    results = {"updated": [], "errors": []}
+    results = {"updated": [], "warnings": [], "errors": []}
 
     for file_config in extra_files:
         # Validate required fields
@@ -363,6 +378,8 @@ def bump_files(
                 f"{file_config['path']}:{path_spec} → {versioned_value}"
             )
 
+        except FileBumperAlreadyCurrentError as e:
+            results["warnings"].append(str(e))
         except FileBumperError as e:
             results["errors"].append(str(e))
 

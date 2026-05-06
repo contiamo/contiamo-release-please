@@ -375,6 +375,11 @@ def bump_files_cmd(config: str | None, dry_run: bool, verbose: bool):
             for update in results["updated"]:
                 click.echo(f"  ✓ {update}")
 
+        if results["warnings"]:
+            click.echo("\nWarnings:")
+            for warning in results["warnings"]:
+                click.echo(f"  WARN: {warning}", err=True)
+
         if results["errors"]:
             click.echo("\nErrors:")
             for error in results["errors"]:
