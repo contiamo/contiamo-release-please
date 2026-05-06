@@ -15,6 +15,7 @@ from contiamo_release_please.gitlab import (
     find_existing_pr,
     get_gitlab_repo_info,
     get_gitlab_token,
+    get_mr_for_commit,
     get_project_id,
     update_pull_request,
 )
@@ -412,5 +413,60 @@ def test_create_or_update_pr_dry_run():
         dry_run=True,
         verbose=False,
     )
+
+    assert result is None
+
+
+def test_get_mr_for_commit_found():
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = [
+        {"iid": 7, "web_url": "https://gitlab.com/owner/repo/-/merge_requests/7"}
+    ]
+
+    with patch("requests.get", return_value=mock_response):
+        result = get_mr_for_commit("gitlab.com", "owner/repo", "abc123", "test-token")
+
+    assert result == (7, "https://gitlab.com/owner/repo/-/merge_requests/7")
+
+
+def test_get_mr_for_commit_uses_first_mr():
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = [
+        {"iid": 5, "web_url": "https://gitlab.com/owner/repo/-/merge_requests/5"},
+        {"iid": 6, "web_url": "https://gitlab.com/owner/repo/-/merge_requests/6"},
+    ]
+
+    with patch("requests.get", return_value=mock_response):
+        result = get_mr_for_commit("gitlab.com", "owner/repo", "abc123", "test-token")
+
+    assert result == (5, "https://gitlab.com/owner/repo/-/merge_requests/5")
+
+
+def test_get_mr_for_commit_not_found():
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = []
+
+    with patch("requests.get", return_value=mock_response):
+        result = get_mr_for_commit("gitlab.com", "owner/repo", "abc123", "test-token")
+
+    assert result is None
+
+
+def test_get_mr_for_commit_non_200():
+    mock_response = MagicMock()
+    mock_response.status_code = 404
+
+    with patch("requests.get", return_value=mock_response):
+        result = get_mr_for_commit("gitlab.com", "owner/repo", "abc123", "test-token")
+
+    assert result is None
+
+
+def test_get_mr_for_commit_network_error():
+    with patch("requests.get", side_effect=requests.exceptions.ConnectionError()):
+        result = get_mr_for_commit("gitlab.com", "owner/repo", "abc123", "test-token")
 
     assert result is None
