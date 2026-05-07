@@ -9,7 +9,9 @@ import tomlkit
 import yaml
 
 from contiamo_release_please.bumper import (
+    FileBumperAlreadyCurrentError,
     FileBumperError,
+    GenericFileBumper,
     JsonFileBumper,
     TomlFileBumper,
     YamlFileBumper,
@@ -592,8 +594,6 @@ def test_bump_files_missing_toml_path():
 
 def test_get_bumper_for_generic():
     """Test getting bumper for generic files."""
-    from contiamo_release_please.bumper import GenericFileBumper, get_bumper_for_type
-
     bumper = get_bumper_for_type("generic")
     assert isinstance(bumper, GenericFileBumper)
 
@@ -615,8 +615,6 @@ Some other content.
         test_file.write_text(content)
 
         # Bump version
-        from contiamo_release_please.bumper import GenericFileBumper
-
         bumper = GenericFileBumper()
         bumper.bump_version(test_file, "", "2.0.0")
 
@@ -642,8 +640,6 @@ uv tool install git+ssh://git@github.com/org/repo.git@v1.0.0
         test_file.write_text(content)
 
         # Bump version with prefix
-        from contiamo_release_please.bumper import GenericFileBumper
-
         bumper = GenericFileBumper()
         bumper.bump_version(test_file, "", "v2.5.0")
 
@@ -668,8 +664,6 @@ Version 1.0.0 or v1.0.0
         test_file.write_text(content)
 
         # Bump version
-        from contiamo_release_please.bumper import GenericFileBumper
-
         bumper = GenericFileBumper()
         bumper.bump_version(test_file, "", "2.0.0")
 
@@ -698,8 +692,6 @@ Another: v1.0.0
         test_file.write_text(content)
 
         # Bump version
-        from contiamo_release_please.bumper import GenericFileBumper
-
         bumper = GenericFileBumper()
         bumper.bump_version(test_file, "", "v2.0.0")
 
@@ -718,9 +710,6 @@ def test_generic_bumper_no_markers():
         content = "Version: 1.0.0"
         test_file.write_text(content)
 
-        # Should fail
-        from contiamo_release_please.bumper import FileBumperError, GenericFileBumper
-
         bumper = GenericFileBumper()
         with pytest.raises(FileBumperError, match="No.*markers found"):
             bumper.bump_version(test_file, "", "2.0.0")
@@ -738,9 +727,6 @@ No version here!
 """
         test_file.write_text(content)
 
-        # Should fail
-        from contiamo_release_please.bumper import FileBumperError, GenericFileBumper
-
         bumper = GenericFileBumper()
         with pytest.raises(FileBumperError, match="No version strings found"):
             bumper.bump_version(test_file, "", "2.0.0")
@@ -748,8 +734,6 @@ No version here!
 
 def test_generic_bumper_file_not_found():
     """Test generic bumper fails when file doesn't exist."""
-    from contiamo_release_please.bumper import FileBumperError, GenericFileBumper
-
     bumper = GenericFileBumper()
     with pytest.raises(FileBumperError, match="File not found"):
         bumper.bump_version(Path("/nonexistent/file.md"), "", "2.0.0")
@@ -808,3 +792,64 @@ Install: git+ssh://git@github.com/org/repo.git@v1.0.0
         result = readme.read_text()
         assert "v2.0.0" in result
         assert "v1.0.0" not in result
+
+
+def test_generic_bumper_already_at_target_raises_already_current():
+    """Test generic bumper raises FileBumperAlreadyCurrentError when file already has target version."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        test_file = Path(tmpdir) / "README.md"
+
+        content = """<!--- contiamo-release-please-bump-start --->
+Install: git+ssh://git@github.com/org/repo.git@v0.19.0
+<!--- contiamo-release-please-bump-end --->
+"""
+        test_file.write_text(content)
+
+        bumper = GenericFileBumper()
+        with pytest.raises(FileBumperAlreadyCurrentError, match="already at target"):
+            bumper.bump_version(test_file, "", "v0.19.0")
+
+        # File must be unchanged
+        assert test_file.read_text() == content
+
+
+def test_bump_files_generic_already_at_target_is_warning_not_error():
+    """When a generic file is pre-set to the target version, bump_files records a warning and no error."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        git_root = Path(tmpdir)
+        readme = git_root / "README.md"
+
+        content = """<!--- contiamo-release-please-bump-start --->
+?ref=v0.19.0
+<!--- contiamo-release-please-bump-end --->
+"""
+        readme.write_text(content)
+
+        extra_files = [{"type": "generic", "path": "README.md", "use-prefix": "v"}]
+
+        results = bump_files(extra_files, "0.19.0", git_root, dry_run=False)
+
+        assert len(results["errors"]) == 0, f"unexpected errors: {results['errors']}"
+        assert len(results["warnings"]) == 1
+        assert "already at target" in results["warnings"][0]
+        # File must remain unchanged
+        assert readme.read_text() == content
+
+
+def test_generic_bumper_no_version_in_block_still_errors():
+    """Marker block with no recognisable version string still raises FileBumperError (not the already-current variant)."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        test_file = Path(tmpdir) / "README.md"
+
+        content = """<!--- contiamo-release-please-bump-start --->
+No semver here!
+<!--- contiamo-release-please-bump-end --->
+"""
+        test_file.write_text(content)
+
+        bumper = GenericFileBumper()
+        with pytest.raises(FileBumperError, match="No version strings found") as exc_info:
+            bumper.bump_version(test_file, "", "v0.19.0")
+
+        # Must be the base error, not the already-current subclass
+        assert not isinstance(exc_info.value, FileBumperAlreadyCurrentError)

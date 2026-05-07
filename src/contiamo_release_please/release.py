@@ -539,6 +539,9 @@ def create_release_branch_workflow(
 
         bump_results = bump_files(extra_files, next_version, git_root, dry_run=False)
 
+        for warning in bump_results["warnings"]:
+            click.echo(f"  WARN: {warning}", err=True)
+
         if bump_results["errors"]:
             raise ReleaseError(f"File bumping errors: {bump_results['errors']}")
 
