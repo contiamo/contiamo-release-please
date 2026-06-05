@@ -8,7 +8,7 @@ from typing import Any
 
 import tomlkit
 import yaml
-from jsonpath_ng import parse
+from jsonpath_ng.ext import parse
 
 
 class FileBumperError(Exception):
@@ -95,7 +95,7 @@ class TomlFileBumper(FileBumper):
 
         Args:
             file_path: Path to the TOML file
-            path_spec: JSONPath expression (e.g., '$.project.version')
+            path_spec: JSONPath expression (e.g., '$.project.version').
             version: Version string to set
 
         Raises:

@@ -128,6 +128,12 @@ extra-files: []
   #   toml-path: $.project.version
   #   use-prefix: ""  # Optional: version prefix for this file
 
+  # uv.lock example (bump one package's version, matched by name):
+  # toml-path uses a JSONPath filter to select a single [[package]] entry.
+  # - type: toml
+  #   path: uv.lock
+  #   toml-path: "$.package[?name='my-package'].version"
+
   # JSON file example (e.g., Node.js package.json):
   # - type: json
   #   path: package.json
