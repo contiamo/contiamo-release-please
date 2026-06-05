@@ -589,6 +589,110 @@ def test_bump_files_missing_toml_path():
         assert "Missing 'toml-path'" in results["errors"][0]
 
 
+# TOML filter expression tests (e.g. bumping one package in uv.lock)
+
+UV_LOCK_SAMPLE = """\
+version = 1
+
+[[package]]
+name = "certifi"
+version = "2025.10.5"
+
+[[package]]
+name = "my-package"
+version = "0.1.0"
+source = { editable = "." }
+
+[[package]]
+name = "requests"
+version = "2.32.0"
+"""
+
+
+def test_toml_bumper_filter_matches_single_package():
+    """Filter expression bumps only the matching [[package]] entry."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        toml_file = Path(tmpdir) / "uv.lock"
+        with open(toml_file, "w") as f:
+            f.write(UV_LOCK_SAMPLE)
+
+        bumper = TomlFileBumper()
+        bumper.bump_version(
+            toml_file, "$.package[?name='my-package'].version", "1.2.3"
+        )
+
+        with open(toml_file, "r") as f:
+            result = tomlkit.load(f)
+
+        by_name = {pkg["name"]: pkg["version"] for pkg in result["package"]}
+        assert by_name["my-package"] == "1.2.3"  # target bumped
+        assert by_name["certifi"] == "2025.10.5"  # others untouched
+        assert by_name["requests"] == "2.32.0"
+
+
+def test_toml_bumper_filter_preserves_formatting():
+    """Filter-based bump preserves comments and surrounding formatting."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        toml_file = Path(tmpdir) / "uv.lock"
+        content = "# lockfile header\n" + UV_LOCK_SAMPLE
+        with open(toml_file, "w") as f:
+            f.write(content)
+
+        bumper = TomlFileBumper()
+        bumper.bump_version(
+            toml_file, "$.package[?name='my-package'].version", "1.2.3"
+        )
+
+        with open(toml_file, "r") as f:
+            result_content = f.read()
+
+        assert "# lockfile header" in result_content
+        assert 'source = { editable = "." }' in result_content
+        assert 'version = "1.2.3"' in result_content
+
+
+def test_toml_bumper_filter_no_match_raises():
+    """A filter matching no package raises a clear 'not found' error."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        toml_file = Path(tmpdir) / "uv.lock"
+        with open(toml_file, "w") as f:
+            f.write(UV_LOCK_SAMPLE)
+
+        bumper = TomlFileBumper()
+        with pytest.raises(FileBumperError, match="Path '.*' not found"):
+            bumper.bump_version(
+                toml_file, "$.package[?name='does-not-exist'].version", "1.2.3"
+            )
+
+
+def test_bump_files_uv_lock_package():
+    """End-to-end: bump_files updates one uv.lock package via a filter path."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        git_root = Path(tmpdir)
+        toml_file = git_root / "uv.lock"
+        with open(toml_file, "w") as f:
+            f.write(UV_LOCK_SAMPLE)
+
+        extra_files = [
+            {
+                "type": "toml",
+                "path": "uv.lock",
+                "toml-path": "$.package[?name='my-package'].version",
+            }
+        ]
+
+        results = bump_files(extra_files, "1.2.3", git_root, dry_run=False)
+
+        assert len(results["errors"]) == 0
+        assert len(results["updated"]) == 1
+
+        with open(toml_file, "r") as f:
+            result = tomlkit.load(f)
+        by_name = {pkg["name"]: pkg["version"] for pkg in result["package"]}
+        assert by_name["my-package"] == "1.2.3"
+        assert by_name["certifi"] == "2025.10.5"
+
+
 # Generic file bumper tests
 
 
