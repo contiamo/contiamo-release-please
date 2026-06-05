@@ -96,9 +96,6 @@ class TomlFileBumper(FileBumper):
         Args:
             file_path: Path to the TOML file
             path_spec: JSONPath expression (e.g., '$.project.version').
-                Filter expressions are supported for selecting one element of an
-                array of tables, e.g. "$.package[?name='my-package'].version" to
-                bump a single package's version in a uv.lock file.
             version: Version string to set
 
         Raises:

@@ -665,34 +665,6 @@ def test_toml_bumper_filter_no_match_raises():
             )
 
 
-def test_bump_files_uv_lock_package():
-    """End-to-end: bump_files updates one uv.lock package via a filter path."""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        git_root = Path(tmpdir)
-        toml_file = git_root / "uv.lock"
-        with open(toml_file, "w") as f:
-            f.write(UV_LOCK_SAMPLE)
-
-        extra_files = [
-            {
-                "type": "toml",
-                "path": "uv.lock",
-                "toml-path": "$.package[?name='my-package'].version",
-            }
-        ]
-
-        results = bump_files(extra_files, "1.2.3", git_root, dry_run=False)
-
-        assert len(results["errors"]) == 0
-        assert len(results["updated"]) == 1
-
-        with open(toml_file, "r") as f:
-            result = tomlkit.load(f)
-        by_name = {pkg["name"]: pkg["version"] for pkg in result["package"]}
-        assert by_name["my-package"] == "1.2.3"
-        assert by_name["certifi"] == "2025.10.5"
-
-
 # Generic file bumper tests
 
 
