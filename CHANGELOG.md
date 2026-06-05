@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.12.0] (2026-06-05)
+
+### Features
+
+* support JSONPath filters in TOML bumper to allow uv.lock editing ([#36](https://github.com/contiamo/contiamo-release-please/pull/36))
+* enrich changelog entries with PR/MR links ([#29](https://github.com/contiamo/contiamo-release-please/pull/29))
+
+### Bug Fixes
+
+* treat pre-set target version in generic bumper as no-op warning ([#35](https://github.com/contiamo/contiamo-release-please/pull/35))
+* strip duplicate GitHub PR suffix from changelog entries ([#33](https://github.com/contiamo/contiamo-release-please/pull/33))
+
 ## [0.11.2] (2026-04-29)
 
 ### Bug Fixes
