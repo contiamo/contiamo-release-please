@@ -99,6 +99,9 @@ extra-files:
   - type: toml
     path: pyproject.toml
     toml-path: $.project.version
+  - type: toml
+    path: uv.lock
+    toml-path: $.package[?name='contiamo-release-please'].version
   - type: generic
     path: README.md
     use-prefix: "v"
