@@ -622,7 +622,7 @@ def test_toml_bumper_filter_matches_single_package():
         )
 
         with open(toml_file, "r") as f:
-            result = tomlkit.load(f)
+            result = tomlkit.load(f).unwrap()
 
         by_name = {pkg["name"]: pkg["version"] for pkg in result["package"]}
         assert by_name["my-package"] == "1.2.3"  # target bumped
