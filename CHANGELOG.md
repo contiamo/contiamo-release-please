@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.12.1] (2026-07-31)
+
+### Bug Fixes
+
+* truncate Azure DevOps PR descriptions to the 4000-character limit
+
 ## [0.12.0] (2026-06-05)
 
 ### Features
