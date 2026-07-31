@@ -14,6 +14,57 @@ class AzureDevOpsError(Exception):
     """Raised when Azure DevOps API operations fail."""
 
 
+# Azure DevOps rejects any pull request description longer than this. It is a
+# hard API limit, not a setting, and it is far tighter than GitHub's (65,536)
+# or GitLab's (1,048,576) -- so a release changelog that is fine elsewhere can
+# still be refused here once enough commits accumulate.
+MAX_PR_DESCRIPTION_LENGTH = 4000
+
+_TRUNCATION_NOTICE = (
+    "\n\n---\n"
+    "_Release notes truncated to fit the Azure DevOps "
+    f"{MAX_PR_DESCRIPTION_LENGTH}-character limit on pull request "
+    "descriptions. See `CHANGELOG.md` on this branch for the full entry._\n"
+)
+
+
+def truncate_pr_description(
+    description: str, limit: int = MAX_PR_DESCRIPTION_LENGTH
+) -> str:
+    """Fit a pull request description within Azure DevOps' length limit.
+
+    Descriptions at or under the limit are returned unchanged. Longer ones are
+    cut back and given a footer pointing at the full changelog, which is
+    committed to the release branch regardless -- so nothing is lost, it just
+    isn't duplicated into the description.
+
+    The cut prefers the last line boundary that still leaves most of the
+    budget intact, so a truncated entry does not end mid-sentence or sever a
+    markdown construct partway through a line.
+
+    Args:
+        description: The desired description
+        limit: Maximum length to produce, including the truncation footer
+
+    Returns:
+        A description of at most ``limit`` characters
+    """
+    if len(description) <= limit:
+        return description
+
+    budget = limit - len(_TRUNCATION_NOTICE)
+    if budget <= 0:
+        # Pathologically small limit: no room for the notice, so just cut.
+        return description[:limit]
+
+    cut = description[:budget]
+    boundary = cut.rfind("\n")
+    if boundary > budget // 2:
+        cut = cut[:boundary]
+
+    return cut.rstrip() + _TRUNCATION_NOTICE
+
+
 def get_azure_token(config: dict[str, Any]) -> str:
     """Get Azure DevOps token from environment or config.
 
@@ -201,7 +252,7 @@ def create_pull_request(
         "sourceRefName": f"refs/heads/{source_branch}",
         "targetRefName": f"refs/heads/{target_branch}",
         "title": title,
-        "description": description,
+        "description": truncate_pr_description(description),
     }
 
     try:
@@ -263,7 +314,7 @@ def update_pull_request(
     }
     payload = {
         "title": title,
-        "description": description,
+        "description": truncate_pr_description(description),
     }
 
     try:
