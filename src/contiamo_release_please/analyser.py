@@ -23,6 +23,19 @@ RELEASE_TYPE_PRIORITY = ["patch", "minor", "major"]
 # Matches Azure DevOps merge commit prefixes like "Merged PR 527516: "
 AZURE_MERGED_PR_RE = re.compile(r"^Merged PR (\d+):\s*")
 
+# Matches the subject Bitbucket Cloud writes for every merged pull request
+# (merge-commit and squash strategies alike), e.g.
+# "Merged in feat/login (pull request #12)". The PR title is not in the
+# subject at all; it is the first paragraph of the body. See git.py for how
+# the subject is normalised so the rest of the tool sees the title instead.
+BITBUCKET_MERGED_PR_RE = re.compile(
+    r"^Merged in (?P<branch>.+?) \(pull request #(?P<pr_id>\d+)\)$"
+)
+
+# Suffix appended by the Bitbucket subject normalisation so the PR number
+# survives to the changelog: "feat: add login (pull request #12)".
+BITBUCKET_PR_SUFFIX_RE = re.compile(r"\s*\(pull request #(?P<pr_id>\d+)\)\s*$")
+
 # Release commit patterns that identify release infrastructure commits
 # These patterns use {release_branch} as a placeholder for dynamic substitution
 RELEASE_COMMIT_PATTERNS = [
@@ -38,6 +51,9 @@ RELEASE_COMMIT_PATTERNS = [
     # - "chore(main): release 1.2.3" (PR title format)
     # - "Merged PR 10: chore(main): release 1.2.3" (Azure DevOps)
     r"^(Merged PR \d+: )?chore\([^)]+\):\s+(update files for )?release",
+    # Pattern 4: Bitbucket Cloud merge commit (raw subject; the title is in the body)
+    # Example: "Merged in release-please--branches--main (pull request #7)"
+    r"^Merged in {release_branch} \(pull request #\d+\)",
 ]
 
 

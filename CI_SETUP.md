@@ -31,7 +31,7 @@ The tool:
 1. Reads the version from version.txt
 2. Creates an annotated git tag
 3. Pushes the tag to the remote repository
-4. Creates a GitHub release (if using GitHub)
+4. Creates a GitHub or GitLab release (Azure DevOps and Bitbucket Cloud have no release objects; the tag is the release)
 
 ## Prerequisites
 
@@ -50,6 +50,7 @@ Before setting up CI, ensure you have:
    - **GitHub**: `GITHUB_TOKEN` environment variable
    - **Azure DevOps**: `AZURE_DEVOPS_TOKEN` environment variable
    - **GitLab**: `GITLAB_TOKEN` environment variable
+   - **Bitbucket Cloud**: `BITBUCKET_TOKEN` environment variable
 
    See [docs/AUTHENTICATION.md](docs/AUTHENTICATION.md) for detailed token setup instructions.
 
@@ -90,8 +91,11 @@ To distinguish between regular commits and release PR merges, check the commit m
 3. **Standard merge:** `Merge branch 'release-please--branches--main' into main`
 4. **GitHub PR merge:** `Merge pull request #72 from contiamo/release-please--branches--main`
 5. **Azure DevOps wrapped:** `Merged PR 10: chore(main): release X.Y.Z`
+6. **Bitbucket Cloud:** `Merged in release-please--branches--main (pull request #7)`
 
 Different git hosting providers may wrap or modify commit messages when merging pull requests. The tool is designed to recognise these variations automatically.
+
+**Bitbucket Cloud merge commits:** Bitbucket always writes `Merged in <branch> (pull request #N)` as the subject of a merge or squash commit and puts the PR title in the body. The tool promotes the PR title (from the API when `BITBUCKET_TOKEN` is set, otherwise from the commit body) so analysis works as on other hosts, but this means **the PR title must be a conventional commit**. The `bootstrap -f bitbucket` output includes a PR title validation step for this reason.
 
 ### Platform-Specific Examples
 
@@ -121,6 +125,18 @@ condition: startsWith(variables['Build.SourceVersionMessage'], 'chore(main): rel
 
 **Note:** Azure DevOps wraps PR titles with `Merged PR N: `, so the condition checks for the inner pattern.
 
+**Bitbucket Pipelines:**
+
+Bitbucket has no commit-message variable, so the decision is made in the step script:
+
+```sh
+if git log -1 --pretty=%s | grep -qE '^Merged in release-please--branches--main \(pull request #[0-9]+\)$'; then
+  contiamo-release-please tag-release --git-host bitbucket --verbose
+else
+  contiamo-release-please release --git-host bitbucket --verbose
+fi
+```
+
 ## CI Environment Requirements
 
 Your CI jobs need:
@@ -129,6 +145,7 @@ Your CI jobs need:
    - GitHub Actions: `fetch-depth: 0` in `actions/checkout`
    - GitLab CI: `GIT_DEPTH: 0` or `git fetch --unshallow`
    - Azure Pipelines: `fetchDepth: 0` in checkout step
+   - Bitbucket Pipelines: `clone: depth: full`
 
 2. **Python 3.12+** and **uv** package manager
 
@@ -136,6 +153,7 @@ Your CI jobs need:
    - `GITHUB_TOKEN` for GitHub
    - `AZURE_DEVOPS_TOKEN` for Azure DevOps
    - `GITLAB_TOKEN` for GitLab
+   - `BITBUCKET_TOKEN` for Bitbucket Cloud
 
 4. **Write access** to the repository (for creating branches, PRs/MRs, and tags)
 
@@ -382,9 +400,70 @@ Then add to CI/CD variables:
 
 **Note:** The git remote URL is constructed using GitLab's built-in CI variables (`CI_SERVER_HOST` and `CI_PROJECT_PATH`), so it automatically works for any GitLab instance without hardcoding URLs.
 
+## Reference Implementation (Bitbucket Pipelines)
+
+Generate this with `contiamo-release-please bootstrap -f bitbucket`. Bitbucket only reads `bitbucket-pipelines.yml` at the repository root, so both jobs live in one file:
+
+```yaml
+image: ghcr.io/astral-sh/uv:python3.12-alpine
+
+clone:
+  depth: full # Full history is required for commit analysis and tag detection
+
+definitions:
+  steps:
+    - step: &contiamo-release-please
+        name: Contiamo Release Please
+        script:
+          - apk add --no-cache git
+          # Bitbucket checks out a detached HEAD; the tool needs to be on the branch
+          - git checkout -B "$BITBUCKET_BRANCH" "$BITBUCKET_COMMIT"
+          # Push branches and tags with the access token
+          - git remote set-url origin "https://x-token-auth:${BITBUCKET_TOKEN}@bitbucket.org/${BITBUCKET_REPO_FULL_NAME}.git"
+          - uv tool install git+https://github.com/contiamo/contiamo-release-please.git
+          # The merge of the release PR always has this subject
+          - |
+            if git log -1 --pretty=%s | grep -qE '^Merged in release-please--branches--main \(pull request #[0-9]+\)$'; then
+              uv tool run contiamo-release-please tag-release --git-host bitbucket --verbose
+            else
+              uv tool run contiamo-release-please release --git-host bitbucket --verbose
+            fi
+
+    - step: &validate-pr-title
+        name: Validate PR title
+        script:
+          - apk add --no-cache curl jq
+          - .bitbucket/scripts/validate-pr-title.sh
+
+pipelines:
+  branches:
+    main:
+      - step: *contiamo-release-please
+  pull-requests:
+    "**":
+      - step: *validate-pr-title
+```
+
+**Key differences from the other platforms:**
+
+- **One file, one step:** there is no commit-message variable, so the step inspects `git log -1` itself and runs either `release` or `tag-release`
+- **Git history:** `clone: depth: full` (default is 50 commits)
+- **Authentication:** a secured repository variable `BITBUCKET_TOKEN` holding a repository access token. It is used both for the API (Bearer) and for `git push` via `x-token-auth:${BITBUCKET_TOKEN}@bitbucket.org`
+- **Branch checkout:** Bitbucket checks out a detached HEAD, so the step recreates the branch first
+- **PR title validation:** `pull-requests:` patterns match the *source* branch, so `"**"` covers every PR; the script skips the tool's own release PRs. Enforcing the check as a merge check needs Bitbucket Premium; without it the failed build is only a warning
+- **No releases:** Bitbucket Cloud has no release objects; `tag-release` creates and pushes the tag only
+
+**Setting up the Bitbucket token:**
+
+1. A **repository admin** goes to Repository settings → Security → Access tokens
+2. Creates a token with scopes **Repositories: Write** and **Pull requests: Write**
+3. Adds it under Repository settings → Pipelines → Repository variables as `BITBUCKET_TOKEN`, ticked **Secured**
+
+Repository access tokens are available on all Bitbucket Cloud plans. User-bound API tokens are not supported by the tool. See the generated `.bitbucket/README-CI-SETUP.md` for branch restrictions and merge checks.
+
 ## Adapting to Other CI Platforms
 
-The reference implementations above (GitHub Actions, Azure Pipelines, and GitLab CI) follow this pattern that works for any CI platform:
+The reference implementations above (GitHub Actions, Azure Pipelines, GitLab CI, and Bitbucket Pipelines) follow this pattern that works for any CI platform:
 
 ### Job 1: Release PR Creation
 
@@ -395,7 +474,7 @@ The reference implementations above (GitHub Actions, Azure Pipelines, and GitLab
    - Install uv package manager
    - Install contiamo-release-please
    - Run `contiamo-release-please release --verbose`
-3. **Environment:** Set `GITHUB_TOKEN`, `AZURE_DEVOPS_TOKEN`, or `GITLAB_TOKEN`
+3. **Environment:** Set `GITHUB_TOKEN`, `AZURE_DEVOPS_TOKEN`, `GITLAB_TOKEN`, or `BITBUCKET_TOKEN`
 
 ### Job 2: Tag Creation
 
@@ -406,7 +485,7 @@ The reference implementations above (GitHub Actions, Azure Pipelines, and GitLab
    - Install uv package manager
    - Install contiamo-release-please
    - Run `contiamo-release-please tag-release --verbose`
-3. **Environment:** Set `GITHUB_TOKEN`, `AZURE_DEVOPS_TOKEN`, or `GITLAB_TOKEN`
+3. **Environment:** Set `GITHUB_TOKEN`, `AZURE_DEVOPS_TOKEN`, `GITLAB_TOKEN`, or `BITBUCKET_TOKEN`
 
 ### Platform-Specific Installation Commands
 
@@ -424,20 +503,7 @@ steps:
     displayName: "Install uv and contiamo-release-please"
 ```
 
-**Bitbucket Pipelines:**
-
-```yaml
-pipelines:
-  default:
-    - step:
-        name: Release PR
-        image: python:3.12
-        script:
-          - curl -LsSf https://astral.sh/uv/install.sh | sh
-          - export PATH="$HOME/.cargo/bin:$PATH"
-          - uv tool install git+ssh://git@github.com/contiamo/contiamo-release-please.git@v0.3.1
-          - contiamo-release-please release --verbose
-```
+**Bitbucket Pipelines:** see the [reference implementation](#reference-implementation-bitbucket-pipelines) above, or run `contiamo-release-please bootstrap -f bitbucket`.
 
 ## What Happens After Setup
 
@@ -451,7 +517,7 @@ Once your CI is configured:
 3. **Team reviews and merges the release PR**
 4. **CI automatically creates:**
    - Git tag (e.g., `v1.2.3`)
-   - GitHub release with changelog (if using GitHub)
+   - GitHub or GitLab release with changelog (if using GitHub or GitLab)
 5. **Subsequent CI jobs can be triggered by the tag** (deployments, builds, etc.)
 
 ### Safety Checks
@@ -480,11 +546,12 @@ If any check fails, the command exits with an error message explaining what's wr
 - The tool will not create a release PR
 - Push commits using conventional commit format (feat:, fix:, etc.)
 
-### "GitHub token not found", "Azure DevOps token not found", or "GitLab token not found"
+### "GitHub token not found", "Azure DevOps token not found", "GitLab token not found", or "Bitbucket token not found"
 
-- Ensure `GITHUB_TOKEN`, `AZURE_DEVOPS_TOKEN`, or `GITLAB_TOKEN` is set as an environment variable
+- Ensure `GITHUB_TOKEN`, `AZURE_DEVOPS_TOKEN`, `GITLAB_TOKEN`, or `BITBUCKET_TOKEN` is set as an environment variable
 - For GitHub Actions, use `${{ secrets.GITHUB_TOKEN }}` or create a custom token
 - For GitLab CI, add `GITLAB_TOKEN` in Settings → CI/CD → Variables
+- For Bitbucket Pipelines, add `BITBUCKET_TOKEN` in Repository settings → Pipelines → Repository variables
 - See [docs/AUTHENTICATION.md](docs/AUTHENTICATION.md) for token setup
 
 ### "Permission denied" or "403 Forbidden"
@@ -493,6 +560,7 @@ If any check fails, the command exits with an error message explaining what's wr
 - For GitHub: Token needs `repo` scope (or `public_repo` for public repos)
 - For Azure DevOps: Token needs `Code (Read & Write)` scope
 - For GitLab: Token needs `api` scope
+- For Bitbucket Cloud: Token needs `repository:write` and `pullrequest:write` scopes
 - See [docs/AUTHENTICATION.md](docs/AUTHENTICATION.md) for required permissions
 
 ### "Failed to create pull request"
@@ -545,6 +613,7 @@ The tool recognises these patterns (defined in `src/contiamo_release_please/anal
 2. `chore(main): release X.Y.Z` - PR title format
 3. `Merge branch 'release-please--branches--main' into main` - Standard merge
 4. `Merged PR 10: chore(main): release X.Y.Z` - Azure DevOps
+5. `Merged in release-please--branches--main (pull request #7)` - Bitbucket Cloud
 
 **For new git providers with different formats:**
 
@@ -593,3 +662,4 @@ Before committing your CI configuration:
 - **GitHub Actions:** [https://github.com/features/actions](https://github.com/features/actions)
 - **GitLab CI/CD:** [https://docs.gitlab.com/ee/ci/](https://docs.gitlab.com/ee/ci/)
 - **Azure Pipelines:** [https://azure.microsoft.com/en-us/services/devops/pipelines/](https://azure.microsoft.com/en-us/services/devops/pipelines/)
+- **Bitbucket Pipelines:** [https://support.atlassian.com/bitbucket-cloud/docs/get-started-with-bitbucket-pipelines/](https://support.atlassian.com/bitbucket-cloud/docs/get-started-with-bitbucket-pipelines/)

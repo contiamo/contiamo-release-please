@@ -199,5 +199,23 @@ extra-files: []
 #   token: "glpat-xxx"  # GitLab personal access token
 #
 # Note: Works with both gitlab.com and self-hosted GitLab instances
+
+# Bitbucket Cloud authentication for pull request creation
+# Type: object with token field
+# Default: none (uses BITBUCKET_TOKEN environment variable if not specified)
+#
+# To configure:
+# 1. Have a repository admin create a repository access token at:
+#    Repository settings → Security → Access tokens
+# 2. Required scopes:
+#    - 'repository:write' (push release branch and tags)
+#    - 'pullrequest:write' (create/update pull requests, read PR titles)
+# 3. Either set BITBUCKET_TOKEN environment variable (recommended) or uncomment below:
+#
+# bitbucket:
+#   token: "xxx"  # Bitbucket repository access token
+#
+# Note: Bitbucket Cloud (bitbucket.org) only. Bitbucket Cloud has no release
+# objects, so tag-release creates and pushes the git tag only.
 """
     return template
