@@ -428,8 +428,8 @@ def bump_files_cmd(config: str | None, dry_run: bool, verbose: bool):
 @click.option(
     "--git-host",
     "-g",
-    type=click.Choice(["github", "azure", "gitlab"], case_sensitive=False),
-    help="Git hosting provider for PR creation (github, azure, gitlab)",
+    type=click.Choice(["github", "azure", "gitlab", "bitbucket"], case_sensitive=False),
+    help="Git hosting provider for PR creation (github, azure, gitlab, bitbucket)",
 )
 def release(config: str | None, dry_run: bool, verbose: bool, git_host: str | None):
     """Create or update release branch with version bumps and changelog.
@@ -488,8 +488,8 @@ def release(config: str | None, dry_run: bool, verbose: bool, git_host: str | No
 @click.option(
     "--git-host",
     "-g",
-    type=click.Choice(["github", "azure", "gitlab"], case_sensitive=False),
-    help="Git hosting provider (github, azure, gitlab). Auto-detected if not specified.",
+    type=click.Choice(["github", "azure", "gitlab", "bitbucket"], case_sensitive=False),
+    help="Git hosting provider (github, azure, gitlab, bitbucket). Auto-detected if not specified.",
 )
 def tag_release(config: str | None, dry_run: bool, verbose: bool, git_host: str | None):
     """Create and push git tag for a merged release.
@@ -616,9 +616,9 @@ def completion(shell: str):
 @click.option(
     "--flavour",
     "-f",
-    type=click.Choice(["github", "azure", "gitlab"], case_sensitive=False),
+    type=click.Choice(["github", "azure", "gitlab", "bitbucket"], case_sensitive=False),
     required=True,
-    help="CI/CD platform to bootstrap (github, azure, gitlab)",
+    help="CI/CD platform to bootstrap (github, azure, gitlab, bitbucket)",
 )
 @click.option(
     "--dry-run",
@@ -636,13 +636,15 @@ def bootstrap(flavour: str, dry_run: bool, verbose: bool):
     """Bootstrap CI/CD workflows and configuration files.
 
     Creates the configuration file and platform-specific CI/CD workflow files
-    needed to automate releases. Supports GitHub Actions, Azure Pipelines, and GitLab CI.
+    needed to automate releases. Supports GitHub Actions, Azure Pipelines, GitLab CI,
+    and Bitbucket Pipelines.
 
     \b
     Examples:
       bootstrap -f github              Create GitHub Actions workflow
       bootstrap -f azure --dry-run     Preview Azure Pipelines files
       bootstrap -f gitlab --verbose    Create GitLab CI with detailed output
+      bootstrap -f bitbucket           Create Bitbucket Pipelines config
     """
     from pathlib import Path
 

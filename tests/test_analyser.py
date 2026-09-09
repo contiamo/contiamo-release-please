@@ -109,6 +109,22 @@ class TestParseCommitMessage:
         assert result["pr_number"] is None
         assert result["pr_url"] is None
 
+    def test_bitbucket_normalised_subject(self):
+        """Normalised Bitbucket subjects parse as conventional commits.
+
+        The "(pull request #N)" suffix stays in the description here; the
+        release workflow strips it when it turns the id into a link.
+        """
+        result = parse_commit_message("feat(api): add endpoint (pull request #12)")
+        assert result["type"] == "feat"
+        assert result["scope"] == "api"
+        assert result["description"] == "add endpoint (pull request #12)"
+
+    def test_bitbucket_raw_merge_subject_is_unknown(self):
+        """A raw Bitbucket merge subject (title lost) is not a conventional commit."""
+        result = parse_commit_message("Merged in feat/login (pull request #12)")
+        assert result["type"] == "unknown"
+
 
 class TestCheckBreakingChange:
     """Tests for check_breaking_change function."""
@@ -329,5 +345,28 @@ class TestIsReleaseCommit:
             "Merge pull request #123 from someorg/release-please--branches--develop"
         )
         release_branch = "release-please--branches--develop"
+
+        assert is_release_commit(commit, release_branch) is True
+
+    def test_bitbucket_raw_merge_subject(self):
+        """Bitbucket merge of the release branch, subject as git writes it."""
+        from contiamo_release_please.analyser import is_release_commit
+
+        commit = "Merged in release-please--branches--main (pull request #7)"
+        release_branch = "release-please--branches--main"
+
+        assert is_release_commit(commit, release_branch) is True
+        # A merge of some other branch is not a release commit
+        assert (
+            is_release_commit("Merged in feat/login (pull request #8)", release_branch)
+            is False
+        )
+
+    def test_bitbucket_normalised_release_subject(self):
+        """Bitbucket merge of the release branch after title promotion."""
+        from contiamo_release_please.analyser import is_release_commit
+
+        commit = "chore(main): release 1.2.3 (pull request #7)"
+        release_branch = "release-please--branches--main"
 
         assert is_release_commit(commit, release_branch) is True

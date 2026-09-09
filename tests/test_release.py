@@ -278,6 +278,9 @@ def test_create_release_branch_workflow_no_releasable_commits():
         patch("contiamo_release_please.release.get_commits_with_sha_since_tag") as mock_commits,
         patch("contiamo_release_please.release.is_release_commit") as mock_is_release,
         patch("contiamo_release_please.release.analyse_commits") as mock_analyse,
+        patch("contiamo_release_please.git.detect_git_host") as mock_detect_host,
+        patch("contiamo_release_please.github.get_github_token"),
+        patch("contiamo_release_please.github.get_repo_info") as mock_repo_info,
     ):
         mock_git_root.return_value = Path("/tmp/repo")
         mock_config_obj = Mock()
@@ -287,12 +290,15 @@ def test_create_release_branch_workflow_no_releasable_commits():
         )
         mock_config_obj.get_git_user_name.return_value = "Test User"
         mock_config_obj.get_git_user_email.return_value = "test@example.com"
+        mock_config_obj._config = {}
         mock_config.return_value = mock_config_obj
 
         mock_tag.return_value = "v1.0.0"
         mock_commits.return_value = [("a94a8fe5ccb19ba61c4c0873d391e987982fbbd3", "docs: update docs")]
         mock_is_release.return_value = False  # Not a release commit
         mock_analyse.return_value = None  # No releasable commits
+        mock_detect_host.return_value = "github"
+        mock_repo_info.return_value = ("owner", "repo")
 
         with pytest.raises(ReleaseError, match="No releasable commits found"):
             create_release_branch_workflow()
@@ -307,6 +313,9 @@ def test_create_release_branch_workflow_only_release_commits():
         patch("contiamo_release_please.release.get_latest_tag") as mock_tag,
         patch("contiamo_release_please.release.get_commits_with_sha_since_tag") as mock_commits,
         patch("contiamo_release_please.release.is_release_commit") as mock_is_release,
+        patch("contiamo_release_please.git.detect_git_host") as mock_detect_host,
+        patch("contiamo_release_please.github.get_github_token"),
+        patch("contiamo_release_please.github.get_repo_info") as mock_repo_info,
     ):
         mock_git_root.return_value = Path("/tmp/repo")
         mock_config_obj = Mock()
@@ -316,11 +325,14 @@ def test_create_release_branch_workflow_only_release_commits():
         )
         mock_config_obj.get_git_user_name.return_value = "Test User"
         mock_config_obj.get_git_user_email.return_value = "test@example.com"
+        mock_config_obj._config = {}
         mock_config.return_value = mock_config_obj
 
         mock_tag.return_value = "v1.0.0"
         mock_commits.return_value = [("a94a8fe5ccb19ba61c4c0873d391e987982fbbd3", "chore(main): update files for release 1.0.0")]
         mock_is_release.return_value = True  # This is a release commit
+        mock_detect_host.return_value = "github"
+        mock_repo_info.return_value = ("owner", "repo")
 
         with pytest.raises(
             ReleaseError,
@@ -1297,6 +1309,189 @@ def test_tag_release_workflow_major_version_tag_custom_prefix(tmp_path):
             "release-2", "release-2.5.0", tmp_path
         )
         mock_force_push_tag.assert_called_once_with("release-2", tmp_path)
+
+
+def test_tag_release_workflow_bitbucket_skips_release_object(tmp_path):
+    """Bitbucket Cloud has no releases; tag-release must still succeed with tag only."""
+    version_file = tmp_path / "version.txt"
+    version_file.write_text("v1.2.3\n")
+
+    with (
+        patch("contiamo_release_please.release.get_git_root") as mock_git_root,
+        patch("contiamo_release_please.release.load_config") as mock_config,
+        patch("contiamo_release_please.release.configure_git_identity"),
+        patch("contiamo_release_please.release.get_current_branch") as mock_branch,
+        patch(
+            "contiamo_release_please.release.get_latest_commit_message"
+        ) as mock_commit,
+        patch("contiamo_release_please.release.tag_exists") as mock_tag_exists,
+        patch("contiamo_release_please.release.create_tag") as mock_create_tag,
+        patch("contiamo_release_please.release.push_tag") as mock_push_tag,
+        patch("contiamo_release_please.release.detect_git_host") as mock_detect_host,
+    ):
+        mock_git_root.return_value = tmp_path
+        mock_config_obj = Mock()
+        mock_config_obj.get_release_branch_name.return_value = (
+            "release-please--branches--main"
+        )
+        mock_config_obj.get_git_user_name.return_value = "Test User"
+        mock_config_obj.get_git_user_email.return_value = "test@example.com"
+        mock_config_obj.get_update_major_version_tag.return_value = False
+        mock_config.return_value = mock_config_obj
+        mock_branch.return_value = "main"
+        # Raw Bitbucket merge subject (body-less, as when someone rewrote the message)
+        mock_commit.return_value = (
+            "Merged in release-please--branches--main (pull request #7)"
+        )
+        mock_tag_exists.return_value = False
+        mock_detect_host.return_value = "bitbucket"
+
+        result = tag_release_workflow(verbose=True)
+
+        assert result["success"] is True
+        assert result["version"] == "v1.2.3"
+        assert result["release_url"] is None
+        mock_create_tag.assert_called_once()
+        mock_push_tag.assert_called_once_with("v1.2.3", tmp_path)
+
+
+def test_create_release_branch_workflow_bitbucket_resolves_titles_and_creates_pr():
+    """Bitbucket flow: merge titles resolved via API before analysis, PR created."""
+    patches = [
+        patch("contiamo_release_please.release.get_git_root"),
+        patch("contiamo_release_please.release.load_config"),
+        patch("contiamo_release_please.release.configure_git_identity"),
+        patch("contiamo_release_please.release.get_latest_tag"),
+        patch("contiamo_release_please.release.parse_version"),
+        patch("contiamo_release_please.release.get_commits_with_sha_since_tag"),
+        patch("contiamo_release_please.git.detect_git_host"),
+        patch("contiamo_release_please.bitbucket.get_bitbucket_token"),
+        patch("contiamo_release_please.bitbucket.get_bitbucket_repo_info"),
+        patch("contiamo_release_please.bitbucket.get_pull_request_title"),
+        patch("contiamo_release_please.release.create_or_reset_release_branch"),
+        patch("contiamo_release_please.release.prepend_to_changelog"),
+        patch("contiamo_release_please.release.write_version_file"),
+        patch("contiamo_release_please.release.bump_files"),
+        patch("contiamo_release_please.release.stage_and_commit_release_changes"),
+        patch("contiamo_release_please.release.push_release_branch"),
+        patch("contiamo_release_please.bitbucket.create_or_update_pr"),
+        patch("contiamo_release_please.release.checkout_branch"),
+    ]
+
+    with ExitStack() as stack:
+        mocks = [stack.enter_context(p) for p in patches]
+        (
+            mock_git_root,
+            mock_config,
+            _,
+            mock_tag,
+            mock_parse,
+            mock_commits,
+            mock_detect_host,
+            mock_get_token,
+            mock_repo_info,
+            mock_pr_title,
+            _,
+            mock_prepend,
+            _,
+            mock_bump,
+            _,
+            _,
+            mock_pr,
+            _,
+        ) = mocks
+
+        mock_git_root.return_value = Path("/tmp/repo")
+        mock_config_obj = Mock()
+        mock_config_obj.get_source_branch.return_value = "main"
+        mock_config_obj.get_release_branch_name.return_value = (
+            "release-please--branches--main"
+        )
+        mock_config_obj.get_version_prefix.return_value = "v"
+        mock_config_obj.get_changelog_path.return_value = "CHANGELOG.md"
+        mock_config_obj.get_extra_files.return_value = []
+        mock_config_obj.get_changelog_sections.return_value = [
+            {"type": "feat", "section": "Features"},
+            {"type": "fix", "section": "Bug Fixes"},
+        ]
+        mock_config_obj.get_git_user_name.return_value = "Test User"
+        mock_config_obj.get_git_user_email.return_value = "test@example.com"
+        # Real config is used by analyse_commits / get_release_type_for_prefix
+        mock_config_obj.get_release_type_for_prefix.side_effect = lambda t: {
+            "feat": "minor",
+            "fix": "patch",
+            "chore": "patch",
+        }.get(t)
+        mock_config_obj._config = {}
+        mock_config.return_value = mock_config_obj
+
+        mock_tag.return_value = "v1.0.0"
+        mock_parse.return_value = "1.0.0"
+        # git.py already promoted the body line; the API says the title was edited
+        mock_commits.return_value = [
+            ("a" * 40, "fix: body line title (pull request #12)"),
+            ("b" * 40, "Merged in feat/orphan (pull request #13)"),
+            ("c" * 40, "chore(main): update files for release 1.0.0"),
+            ("d" * 40, "docs: plain commit pushed directly"),
+        ]
+        mock_detect_host.return_value = "bitbucket"
+        mock_get_token.return_value = "bb-token"
+        mock_repo_info.return_value = ("appdl", "kamin")
+        mock_pr_title.side_effect = lambda ws, slug, pr_id, token: {
+            12: "feat: title from api",
+            13: None,  # PR not reachable: keep what git gave us
+        }[pr_id]
+        mock_pr.return_value = {
+            "id": 42,
+            "links": {"html": {"href": "https://bitbucket.org/appdl/kamin/pull-requests/42"}},
+        }
+        mock_bump.return_value = {"updated": [], "errors": [], "warnings": []}
+
+        result = create_release_branch_workflow()
+
+        # feat from the API title wins over the fix from the body line -> minor bump
+        assert result["success"] is True
+        assert result["version"] == "1.1.0"
+        assert result["pr_url"] == "https://bitbucket.org/appdl/kamin/pull-requests/42"
+
+        mock_pr_title.assert_any_call("appdl", "kamin", 12, "bb-token")
+        mock_pr_title.assert_any_call("appdl", "kamin", 13, "bb-token")
+
+        changelog_entry = mock_prepend.call_args.args[1]
+        assert "title from api" in changelog_entry
+        assert "(pull request #12)" not in changelog_entry
+        assert "https://bitbucket.org/appdl/kamin/pull-requests/12" in changelog_entry
+        assert "update files for release" not in changelog_entry
+
+        pr_kwargs = mock_pr.call_args.kwargs
+        assert pr_kwargs["workspace"] == "appdl"
+        assert pr_kwargs["repo_slug"] == "kamin"
+        assert pr_kwargs["title"] == "chore(main): release 1.1.0"
+        assert pr_kwargs["head_branch"] == "release-please--branches--main"
+        assert pr_kwargs["base_branch"] == "main"
+
+
+def test_enrich_commits_bitbucket_links_pr_from_suffix():
+    """Bitbucket enrichment needs no API: the PR id is in the normalised subject."""
+    result = _enrich_commits_with_pr_info(
+        [
+            ("abc123", "feat(api): add endpoint (pull request #12)"),
+            ("def456", "fix: direct push without PR"),
+        ],
+        git_host="bitbucket",
+        host_context={"workspace": "appdl", "repo_slug": "kamin"},
+        token="unused",
+    )
+
+    assert result[0]["type"] == "feat"
+    assert result[0]["scope"] == "api"
+    assert result[0]["description"] == "add endpoint"
+    assert result[0]["pr_number"] == 12
+    assert result[0]["pr_url"] == "https://bitbucket.org/appdl/kamin/pull-requests/12"
+
+    assert result[1]["description"] == "direct push without PR"
+    assert result[1]["pr_number"] is None
+    assert result[1]["pr_url"] is None
 
 
 def test_enrich_commits_strips_github_pr_suffix():

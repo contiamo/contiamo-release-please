@@ -4,6 +4,14 @@ import re
 import subprocess
 from pathlib import Path
 
+from contiamo_release_please.analyser import BITBUCKET_MERGED_PR_RE
+
+# Field and record separators for multi-field `git log` output. Both are
+# ASCII control characters that never appear in commit messages.
+_FIELD_SEP = "\x1f"
+_RECORD_SEP = "\x1e"
+_LOG_FORMAT = f"%H{_FIELD_SEP}%s{_FIELD_SEP}%b{_RECORD_SEP}"
+
 
 class GitError(Exception):
     """Raised when git operations fail."""
@@ -139,10 +147,60 @@ def get_latest_tag(
         return None
 
 
+def normalise_commit_subject(subject: str, body: str) -> str:
+    """Return the subject line the rest of the tool should analyse.
+
+    Most hosts put the conventional-commit text in the subject line, so the
+    subject is returned unchanged. Bitbucket Cloud is the exception: every
+    merged pull request gets the subject "Merged in <branch> (pull request #N)"
+    and the PR title is pushed down into the body. For those commits the
+    first non-empty body line (the title) is promoted to the subject and the
+    PR number is kept as a "(pull request #N)" suffix so it can be turned
+    into a changelog link later.
+
+    If the body is empty (someone rewrote the merge message), the raw subject
+    is returned and the commit is treated as non-conventional.
+
+    Args:
+        subject: Commit subject line (%s)
+        body: Commit body (%b), may be empty
+
+    Returns:
+        Subject to analyse
+    """
+    match = BITBUCKET_MERGED_PR_RE.match(subject.strip())
+    if not match:
+        return subject
+
+    for line in body.splitlines():
+        title = line.strip()
+        if title:
+            return f"{title} (pull request #{match.group('pr_id')})"
+
+    return subject
+
+
+def _parse_log_records(output: str) -> list[tuple[str, str]]:
+    """Parse `git log` output produced with _LOG_FORMAT into (sha, subject) pairs."""
+    commits: list[tuple[str, str]] = []
+    for record in output.split(_RECORD_SEP):
+        if not record.strip():
+            continue
+        parts = record.lstrip("\n").split(_FIELD_SEP, 2)
+        sha = parts[0].strip()
+        subject = parts[1].strip() if len(parts) > 1 else ""
+        body = parts[2] if len(parts) > 2 else ""
+        commits.append((sha, normalise_commit_subject(subject, body)))
+    return commits
+
+
 def get_commits_with_sha_since_tag(
     tag: str | None = None, cwd: Path | None = None
 ) -> list[tuple[str, str]]:
     """Get commit SHAs and messages since a given tag.
+
+    Subjects are passed through normalise_commit_subject so Bitbucket merge
+    commits surface their PR title rather than the generic "Merged in" line.
 
     Args:
         tag: Git tag to start from (None = get all commits)
@@ -156,12 +214,12 @@ def get_commits_with_sha_since_tag(
     """
     range_spec = f"{tag}..HEAD" if tag else "HEAD"
     output = _run_git_command(
-        ["log", range_spec, "--pretty=format:%H %s"],
+        ["log", range_spec, f"--pretty=format:{_LOG_FORMAT}"],
         cwd=cwd,
     )
     if not output:
         return []
-    return [(line[:40], line[41:]) for line in output.split("\n") if line]
+    return _parse_log_records(output)
 
 
 def get_commits_since_tag(tag: str | None = None, cwd: Path | None = None) -> list[str]:
@@ -192,10 +250,13 @@ def get_latest_commit_message(cwd: Path | None = None) -> str:
     Raises:
         GitError: If unable to get commit message
     """
-    output = _run_git_command(["log", "-1", "--pretty=format:%s"], cwd=cwd)
-    if not output:
+    output = _run_git_command(
+        ["log", "-1", f"--pretty=format:{_LOG_FORMAT}"], cwd=cwd
+    )
+    records = _parse_log_records(output) if output else []
+    if not records:
         raise GitError("No commits found in repository")
-    return output
+    return records[0][1]
 
 
 def extract_version_from_tag(tag: str) -> str:
@@ -426,7 +487,7 @@ def detect_git_host(git_root: Path) -> str | None:
         git_root: Git repository root path
 
     Returns:
-        Git host identifier ('github', 'azure', 'gitlab') or None if cannot detect
+        Git host identifier ('github', 'azure', 'gitlab', 'bitbucket') or None if cannot detect
     """
     try:
         result = subprocess.run(
@@ -449,6 +510,10 @@ def detect_git_host(git_root: Path) -> str | None:
         # Check for GitLab (gitlab.com or custom instances)
         if "gitlab" in remote_url:
             return "gitlab"
+
+        # Check for Bitbucket Cloud
+        if "bitbucket.org" in remote_url:
+            return "bitbucket"
 
         return None
 

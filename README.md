@@ -102,7 +102,7 @@ jobs:
 - On release PR merge: creates git tag and GitHub release
 - No need for conditional job logic - the action handles it internally
 
-**Using Azure Pipelines?** See the [CI/CD Setup Guide](CI_SETUP.md) for a complete Azure Pipelines example.
+**Using Azure Pipelines, GitLab CI or Bitbucket Pipelines?** Run `contiamo-release-please bootstrap -f azure|gitlab|bitbucket` to generate the pipeline files, and see the [CI/CD Setup Guide](CI_SETUP.md) for complete examples.
 
 ## Features
 
@@ -151,7 +151,7 @@ contiamo-release-please bump-files -v
 
 ### Pull Request Creation
 
-Automatically creates PRs on GitHub or Azure DevOps:
+Automatically creates PRs on GitHub, Azure DevOps, GitLab or Bitbucket Cloud. The provider is detected from the `origin` remote URL; `--git-host` overrides it:
 
 ```bash
 # GitHub (auto-detected)
@@ -161,7 +161,17 @@ contiamo-release-please release -v
 # Azure DevOps
 export AZURE_DEVOPS_TOKEN="xxx"
 contiamo-release-please release --git-host azure -v
+
+# GitLab (gitlab.com or self-hosted)
+export GITLAB_TOKEN="glpat-xxx"
+contiamo-release-please release --git-host gitlab -v
+
+# Bitbucket Cloud (repository access token)
+export BITBUCKET_TOKEN="xxx"
+contiamo-release-please release --git-host bitbucket -v
 ```
+
+**Bitbucket note:** Bitbucket Cloud writes every merge commit as `Merged in <branch> (pull request #N)` and puts the PR title in the body. The tool resolves the title via the API (falling back to the commit body), so on Bitbucket the **PR title** must be a conventional commit. The bootstrap output includes a PR title check for this.
 
 ### GitHub Release Creation
 
@@ -179,7 +189,7 @@ The GitHub release will include:
 - Full changelog entry from `CHANGELOG.md` as the release body
 - Link to the release page
 
-This works automatically for GitHub repositories (detected from remote URL).
+This works automatically for GitHub repositories (detected from remote URL). GitLab gets a GitLab release the same way. Azure DevOps and Bitbucket Cloud have no release objects, so `tag-release` creates and pushes the tag only.
 
 ## Configuration
 
@@ -228,6 +238,14 @@ release-rules:
 # Optional: Azure DevOps PR creation
 # azure:
 #   token: "xxx"  # Or use AZURE_DEVOPS_TOKEN env var
+
+# Optional: GitLab MR creation
+# gitlab:
+#   token: "glpat-xxx"  # Or use GITLAB_TOKEN env var
+
+# Optional: Bitbucket Cloud PR creation
+# bitbucket:
+#   token: "xxx"  # Or use BITBUCKET_TOKEN env var
 ```
 
 ## Conventional Commits
@@ -270,8 +288,8 @@ The tool automatically fetches tags from the remote repository before determinin
 
 ## Documentation
 
-- **[CI/CD Setup Guide](CI_SETUP.md)** - Comprehensive guide for GitHub Actions, GitLab CI, Azure Pipelines, and other platforms
-- **[Authentication Setup](docs/AUTHENTICATION.md)** - Token configuration for GitHub and Azure DevOps
+- **[CI/CD Setup Guide](CI_SETUP.md)** - Comprehensive guide for GitHub Actions, GitLab CI, Azure Pipelines, Bitbucket Pipelines, and other platforms
+- **[Authentication Setup](docs/AUTHENTICATION.md)** - Token configuration for GitHub, Azure DevOps, GitLab and Bitbucket Cloud
 - **Configuration** - Run `contiamo-release-please generate-config` to see all available options
 
 ## Requirements

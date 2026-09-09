@@ -9,6 +9,7 @@ import click
 
 from contiamo_release_please.analyser import (
     AZURE_MERGED_PR_RE,
+    BITBUCKET_PR_SUFFIX_RE,
     ParsedCommit,
     analyse_commits,
     get_commit_type_summary,
@@ -260,6 +261,32 @@ def _enrich_commits_with_pr_info(
             result.append(parsed)
         return result
 
+    if git_host.lower() == "bitbucket":
+        # Bitbucket merge subjects have already been normalised to
+        # "<PR title> (pull request #N)" (see git.normalise_commit_subject and
+        # bitbucket.resolve_merge_commit_titles), so the PR id is in the
+        # message itself and no API call is needed here.
+        from contiamo_release_please.bitbucket import (
+            extract_pr_id,
+            get_bitbucket_pr_url,
+        )
+
+        workspace = host_context.get("workspace", "")
+        repo_slug = host_context.get("repo_slug", "")
+
+        bb_result: list[ParsedCommit] = []
+        for _sha, message in commits_with_sha:
+            parsed = parse_commit_message(message)
+            pr_id = extract_pr_id(message)
+            if pr_id is not None:
+                parsed["description"] = BITBUCKET_PR_SUFFIX_RE.sub(
+                    "", parsed["description"]
+                )
+                parsed["pr_number"] = pr_id
+                parsed["pr_url"] = get_bitbucket_pr_url(workspace, repo_slug, pr_id)
+            bb_result.append(parsed)
+        return bb_result
+
     if git_host.lower() == "github":
         from contiamo_release_please.github import get_pr_for_commit
 
@@ -358,38 +385,6 @@ def create_release_branch_workflow(
     if not all_commits_with_sha:
         raise ReleaseError("No commits since last release")
 
-    # Filter out release infrastructure commits
-    commits_with_sha = [
-        (sha, msg)
-        for sha, msg in all_commits_with_sha
-        if not is_release_commit(msg, release_branch)
-    ]
-
-    # Check if only release commits exist (user forgot to run tag-release)
-    if not commits_with_sha and all_commits_with_sha:
-        raise ReleaseError(
-            "Only release infrastructure commits found since last tag. "
-            "Please run 'contiamo-release-please tag-release' to tag the merged release."
-        )
-
-    if not commits_with_sha:
-        raise ReleaseError("No commits since last release")
-
-    # Extract just messages for analysis (SHA not needed here)
-    commit_messages = [msg for _, msg in commits_with_sha]
-
-    # Analyse commits (returns release type string)
-    release_type = analyse_commits(commit_messages, config)
-    if not release_type:
-        raise ReleaseError("No releasable commits found")
-
-    # Get commit summary
-    commit_summary = get_commit_type_summary(commit_messages, config)
-
-    # Calculate next version (handles first release correctly)
-    next_version = get_next_version(current_version_str, release_type)
-    next_version_prefixed = f"{version_prefix}{next_version}"
-
     # Determine git host (auto-detect if not explicitly provided)
     determined_git_host = git_host
     if not determined_git_host:
@@ -401,8 +396,8 @@ def create_release_branch_workflow(
     if determined_git_host is None:
         raise ReleaseError(
             "Could not detect git hosting provider from remote URL. "
-            "Supported providers: github.com, dev.azure.com, gitlab.com (or custom GitLab instances). "
-            "Use --git-host to specify provider explicitly: --git-host github|azure|gitlab"
+            "Supported providers: github.com, dev.azure.com, gitlab.com (or custom GitLab instances), bitbucket.org. "
+            "Use --git-host to specify provider explicitly: --git-host github|azure|gitlab|bitbucket"
         )
 
     # Validate credentials and resolve host context (even in dry-run)
@@ -450,6 +445,60 @@ def create_release_branch_workflow(
             host_context = {"host": gl_host, "project_path": project_path}
         except GitLabError as e:
             raise ReleaseError(f"GitLab detected but authentication failed: {e}")
+
+    elif determined_git_host.lower() == "bitbucket":
+        from contiamo_release_please.bitbucket import (
+            BitbucketError,
+            get_bitbucket_repo_info,
+            get_bitbucket_token,
+            resolve_merge_commit_titles,
+        )
+
+        try:
+            host_token = get_bitbucket_token(config._config)
+            workspace, repo_slug = get_bitbucket_repo_info(git_root)
+            host_context = {"workspace": workspace, "repo_slug": repo_slug}
+        except BitbucketError as e:
+            raise ReleaseError(f"Bitbucket detected but authentication failed: {e}")
+
+        # Bitbucket merge commits carry the PR title in the body, not the
+        # subject. git.py already promoted the body line; now replace it with
+        # the authoritative title from the API before analysing anything.
+        all_commits_with_sha = resolve_merge_commit_titles(
+            all_commits_with_sha, workspace, repo_slug, host_token
+        )
+
+    # Filter out release infrastructure commits
+    commits_with_sha = [
+        (sha, msg)
+        for sha, msg in all_commits_with_sha
+        if not is_release_commit(msg, release_branch)
+    ]
+
+    # Check if only release commits exist (user forgot to run tag-release)
+    if not commits_with_sha and all_commits_with_sha:
+        raise ReleaseError(
+            "Only release infrastructure commits found since last tag. "
+            "Please run 'contiamo-release-please tag-release' to tag the merged release."
+        )
+
+    if not commits_with_sha:
+        raise ReleaseError("No commits since last release")
+
+    # Extract just messages for analysis (SHA not needed here)
+    commit_messages = [msg for _, msg in commits_with_sha]
+
+    # Analyse commits (returns release type string)
+    release_type = analyse_commits(commit_messages, config)
+    if not release_type:
+        raise ReleaseError("No releasable commits found")
+
+    # Get commit summary
+    commit_summary = get_commit_type_summary(commit_messages, config)
+
+    # Calculate next version (handles first release correctly)
+    next_version = get_next_version(current_version_str, release_type)
+    next_version_prefixed = f"{version_prefix}{next_version}"
 
     # Parse commits and enrich with PR/MR links from the git host
     parsed_commits = _enrich_commits_with_pr_info(
@@ -648,6 +697,37 @@ def create_release_branch_workflow(
         except GitLabError as e:
             raise ReleaseError(f"GitLab MR creation failed: {e}")
 
+    elif determined_git_host.lower() == "bitbucket":
+        from contiamo_release_please.bitbucket import (
+            BitbucketError,
+            create_or_update_pr,
+        )
+
+        try:
+            if verbose:
+                click.echo("\nCreating/updating Bitbucket pull request...")
+
+            pr_data = create_or_update_pr(
+                workspace=host_context["workspace"],
+                repo_slug=host_context["repo_slug"],
+                title=f"chore({source_branch}): release {next_version}",
+                body=changelog_entry,
+                head_branch=release_branch,
+                base_branch=source_branch,
+                token=host_token,
+                dry_run=dry_run,
+                verbose=verbose,
+            )
+
+            if pr_data:
+                pr_url = pr_data.get("links", {}).get("html", {}).get("href")
+                pr_id = pr_data.get("id")
+                click.echo(f"\n✓ Pull request created/updated: #{pr_id}")
+                click.echo(f"  {pr_url}")
+
+        except BitbucketError as e:
+            raise ReleaseError(f"Bitbucket PR creation failed: {e}")
+
     # Switch back to source branch
     if verbose:
         click.echo(f"\nSwitching back to '{source_branch}'...")
@@ -730,7 +810,8 @@ def tag_release_workflow(
             f"  • Squash merge: chore({source_branch}): update files for release X.Y.Z\n"
             f"  • PR title: chore({source_branch}): release X.Y.Z\n"
             f"  • Merge commit: Merge branch '{release_branch}' into {source_branch}\n"
-            f"  • Azure DevOps: Merged PR N: chore({source_branch}): release X.Y.Z\n\n"
+            f"  • Azure DevOps: Merged PR N: chore({source_branch}): release X.Y.Z\n"
+            f"  • Bitbucket: Merged in {release_branch} (pull request #N)\n\n"
             f"The tag-release command should only be run after merging a release PR.\n\n"
             f"To create a release:\n"
             f"  1. Run: contiamo-release-please release\n"
@@ -921,6 +1002,13 @@ def tag_release_workflow(
             # Don't fail the entire workflow if GitLab release creation fails
             if verbose:
                 click.echo(f"Warning: Failed to create GitLab release: {e}")
+
+    elif determined_git_host == "bitbucket":
+        # Bitbucket Cloud has no release objects; the tag is the release.
+        if verbose:
+            click.echo(
+                "\nBitbucket Cloud has no releases; the pushed tag is the release."
+            )
 
     # Update major version tag if configured
     major_version_tag = None

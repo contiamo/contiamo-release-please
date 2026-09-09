@@ -7,6 +7,11 @@ from contiamo_release_please.ci_templates.azure import (
     AZURE_PR_VALIDATION_SCRIPT,
     AZURE_PR_VALIDATION_TEMPLATE,
 )
+from contiamo_release_please.ci_templates.bitbucket import (
+    BITBUCKET_CI_SETUP_README,
+    BITBUCKET_PIPELINES_TEMPLATE,
+    BITBUCKET_PR_VALIDATION_SCRIPT,
+)
 from contiamo_release_please.ci_templates.config import generate_config_template
 from contiamo_release_please.ci_templates.github import GITHUB_WORKFLOW_TEMPLATE
 from contiamo_release_please.ci_templates.gitlab import GITLAB_CI_TEMPLATE
@@ -19,5 +24,8 @@ __all__ = [
     "AZURE_BRANCH_POLICIES_README",
     "AZURE_CI_SETUP_README",
     "GITLAB_CI_TEMPLATE",
+    "BITBUCKET_PIPELINES_TEMPLATE",
+    "BITBUCKET_PR_VALIDATION_SCRIPT",
+    "BITBUCKET_CI_SETUP_README",
     "generate_config_template",
 ]

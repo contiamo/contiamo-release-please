@@ -9,12 +9,15 @@ from contiamo_release_please.ci_templates import (
     AZURE_CI_TEMPLATE,
     AZURE_PR_VALIDATION_SCRIPT,
     AZURE_PR_VALIDATION_TEMPLATE,
+    BITBUCKET_CI_SETUP_README,
+    BITBUCKET_PIPELINES_TEMPLATE,
+    BITBUCKET_PR_VALIDATION_SCRIPT,
     GITHUB_WORKFLOW_TEMPLATE,
     GITLAB_CI_TEMPLATE,
     generate_config_template,
 )
 
-Flavour = Literal["github", "azure", "gitlab"]
+Flavour = Literal["github", "azure", "gitlab", "bitbucket"]
 
 
 def create_github_workflows(base_path: Path, dry_run: bool = False) -> list[Path]:
@@ -98,6 +101,36 @@ def create_gitlab_pipelines(base_path: Path, dry_run: bool = False) -> list[Path
     return [ci_file]
 
 
+def create_bitbucket_pipelines(base_path: Path, dry_run: bool = False) -> list[Path]:
+    """Create Bitbucket Pipelines files.
+
+    Args:
+        base_path: Base directory to create files in
+        dry_run: If True, don't actually write files
+
+    Returns:
+        List of paths that were (or would be) created
+    """
+    bitbucket_dir = base_path / ".bitbucket"
+    scripts_dir = bitbucket_dir / "scripts"
+
+    pipelines_file = base_path / "bitbucket-pipelines.yml"
+    validation_script = scripts_dir / "validate-pr-title.sh"
+    ci_setup_readme = bitbucket_dir / "README-CI-SETUP.md"
+
+    if not dry_run:
+        scripts_dir.mkdir(parents=True, exist_ok=True)
+
+        pipelines_file.write_text(BITBUCKET_PIPELINES_TEMPLATE.strip() + "\n")
+        validation_script.write_text(BITBUCKET_PR_VALIDATION_SCRIPT.strip() + "\n")
+        ci_setup_readme.write_text(BITBUCKET_CI_SETUP_README.strip() + "\n")
+
+        # Make script executable
+        validation_script.chmod(0o755)
+
+    return [pipelines_file, validation_script, ci_setup_readme]
+
+
 def create_config_file(base_path: Path, dry_run: bool = False) -> Path:
     """Create contiamo-release-please.yaml config file.
 
@@ -123,7 +156,7 @@ def bootstrap_flavour(
     """Bootstrap CI/CD workflows for the specified flavour.
 
     Args:
-        flavour: The CI/CD platform to bootstrap (github, azure, gitlab)
+        flavour: The CI/CD platform to bootstrap (github, azure, gitlab, bitbucket)
         base_path: Base directory to create files in (default: current directory)
         dry_run: If True, don't actually write files
 
@@ -245,9 +278,46 @@ Next Steps:
 For more information, see: CI_SETUP.md
 """
 
+    elif flavour == "bitbucket":
+        pipeline_files = create_bitbucket_pipelines(base_path, dry_run)
+        created_files.extend(pipeline_files)
+
+        instructions = """
+Next Steps:
+
+1. Review and customise the generated configuration file:
+   - contiamo-release-please.yaml
+
+2. Create a repository access token (requires a repository admin):
+   - Go to Repository settings → Security → Access tokens
+   - Create a token with scopes:
+     * Repositories: Write (repository:write)
+     * Pull requests: Write (pullrequest:write)
+   - Copy the generated token
+
+3. Store the token as a secured pipeline variable:
+   - Go to Repository settings → Pipelines → Repository variables
+   - Name: BITBUCKET_TOKEN, Value: the token, tick "Secured"
+
+4. Enable Pipelines if not already enabled:
+   - Repository settings → Pipelines → Settings → Enable Pipelines
+
+5. Commit the generated files:
+   git add bitbucket-pipelines.yml .bitbucket/ contiamo-release-please.yaml
+   git commit -m "chore: add release automation pipeline"
+   git push
+
+6. Configure branch restrictions and merge checks:
+   - See .bitbucket/README-CI-SETUP.md (enforcing merge checks needs Premium)
+
+7. The pipeline will run on the next push to main branch
+
+For more information, see: CI_SETUP.md
+"""
+
     else:
         raise ValueError(
-            f"Unknown flavour: {flavour}. Supported: github, azure, gitlab"
+            f"Unknown flavour: {flavour}. Supported: github, azure, gitlab, bitbucket"
         )
 
     return created_files, instructions.strip()
