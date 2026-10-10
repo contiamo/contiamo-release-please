@@ -66,12 +66,18 @@ def bump_version(current_version: str, bump_type: str) -> str:
         )
 
 
-def get_next_version(current_version: str | None, release_type: str | None) -> str:
+def get_next_version(
+    current_version: str | None,
+    release_type: str | None,
+    bump_minor_pre_major: bool = False,
+) -> str:
     """Calculate the next version based on current version and release type.
 
     Args:
         current_version: Current version string or None if no releases yet
         release_type: Type of release ('major', 'minor', 'patch') or None if no changes
+        bump_minor_pre_major: If True, a major release below 1.0.0 bumps the
+            minor version instead
 
     Returns:
         Next version string
@@ -88,6 +94,14 @@ def get_next_version(current_version: str | None, release_type: str | None) -> s
     # First release
     if current_version is None:
         return FIRST_RELEASE
+
+    # Below 1.0.0, breaking changes bump minor when configured
+    if (
+        bump_minor_pre_major
+        and release_type == "major"
+        and parse_version(current_version).major == 0
+    ):
+        release_type = "minor"
 
     # Bump existing version
     return bump_version(current_version, release_type)

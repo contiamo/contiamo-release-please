@@ -104,6 +104,15 @@ changelog-sections:
 # Uncomment to enable:
 # update-major-version-tag: true
 
+# Bump the minor version instead of the major version while below 1.0.0
+# Type: boolean
+# Default: false
+#
+# When enabled, a breaking change on version 0.68.0 produces 0.69.0
+# instead of 1.0.0. Versions at or above 1.0.0 are unaffected.
+# Uncomment to enable:
+# bump-minor-pre-major: true
+
 # Extra files to bump version in (beyond the changelog)
 # Type: list of file configuration objects
 # Default: [] (empty list)

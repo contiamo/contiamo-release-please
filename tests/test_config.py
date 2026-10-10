@@ -196,3 +196,21 @@ def test_generated_config_includes_marker_documentation():
     # Check for marker documentation
     assert "contiamo-release-please-bump-start" in template
     assert "contiamo-release-please-bump-end" in template
+
+
+def test_bump_minor_pre_major_defaults_to_false(tmp_path):
+    """Test that bump-minor-pre-major is disabled when not configured."""
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text("release-rules:\n  major:\n    - breaking\n")
+
+    assert ReleaseConfig(config_file).get_bump_minor_pre_major() is False
+
+
+def test_bump_minor_pre_major_enabled(tmp_path):
+    """Test that bump-minor-pre-major is read from configuration."""
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text(
+        "release-rules:\n  major:\n    - breaking\nbump-minor-pre-major: true\n"
+    )
+
+    assert ReleaseConfig(config_file).get_bump_minor_pre_major() is True

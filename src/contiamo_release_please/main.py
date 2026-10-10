@@ -82,7 +82,11 @@ def calculate_next_version(config_path: str | None = None) -> dict[str, Any]:
     release_type = analyse_commits(commits, release_config)
 
     # Calculate next version
-    next_version = get_next_version(current_version, release_type)
+    next_version = get_next_version(
+        current_version,
+        release_type,
+        bump_minor_pre_major=release_config.get_bump_minor_pre_major(),
+    )
 
     # Get version prefix from config
     version_prefix = release_config.get_version_prefix()
