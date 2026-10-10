@@ -497,7 +497,11 @@ def create_release_branch_workflow(
     commit_summary = get_commit_type_summary(commit_messages, config)
 
     # Calculate next version (handles first release correctly)
-    next_version = get_next_version(current_version_str, release_type)
+    next_version = get_next_version(
+        current_version_str,
+        release_type,
+        bump_minor_pre_major=config.get_bump_minor_pre_major(),
+    )
     next_version_prefixed = f"{version_prefix}{next_version}"
 
     # Parse commits and enrich with PR/MR links from the git host

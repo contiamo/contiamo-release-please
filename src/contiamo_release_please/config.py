@@ -166,6 +166,18 @@ class ReleaseConfig:
         """
         return bool(self._config.get("update-major-version-tag", False))
 
+    def get_bump_minor_pre_major(self) -> bool:
+        """Get whether major releases bump the minor version below 1.0.0.
+
+        When enabled, a breaking change on version '0.68.0' produces
+        '0.69.0' instead of '1.0.0'. Versions at or above 1.0.0 are
+        unaffected.
+
+        Returns:
+            True if pre-1.0.0 major releases should bump minor, False otherwise
+        """
+        return bool(self._config.get("bump-minor-pre-major", False))
+
     def get_git_user_name(self) -> str:
         """Get git user name for commits.
 
